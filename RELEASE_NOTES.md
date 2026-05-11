@@ -6,7 +6,27 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2 (GPU growth) is next. See `TODO.md`._
+_v0.2.1 (leaves) is the likely next step._
+
+## v0.2 — GPU growth (2026-05-11)
+
+### Added
+- **Segments live on the GPU.** Replaced the CPU-built vertex buffer with a `storage` buffer of 2048 segment slots (48 B each). The branch vertex shader reads from it indexed by `@builtin(instance_index)` and skips slots where the `ALIVE_BIT` is unset.
+- **Atomic append counter.** A second storage buffer holds an `atomic<u32>` "next free slot" counter, started at 1 (seed is at index 0).
+- **Genome uniform** (32 B): branch angle, branch probability, length & radius scales, max depth, growth bias. Hardcoded for v0.2 — these will be mutated per-plant in v0.4.
+- **Growth compute kernel** (`shaders/growth.wgsl`): one workgroup per 64 segment slots. For each alive tip created on an earlier sim tick, decides between 1 (continuation only) or 2 (continuation + lateral) children, allocates slots atomically, writes children with golden-angle phyllotaxy + phototropism, and clears the parent's tip bit. Saturates gracefully at `maxSegs`.
+- **Fixed-step sim scheduler** (~2 Hz): an accumulator decoupled from the render loop dispatches one growth pass per sim tick, after a 0.6 s pause so the seed is visible before sprouting.
+- **Wind animation** in the branch vertex shader: world-position-driven sum-of-sines, amplitude scales with world Y so trunks barely sway and tips sway most. Position-keyed (not segment-local) so neighboring segments stay joined at their seams.
+- **Combined compute + render encoder**: one `commandEncoder` per frame holds the optional growth pass followed by the render pass, leaning on WebGPU's automatic inter-pass synchronization for the segment buffer read-after-write.
+
+### Changed
+- The CPU no longer authors the plant. Initial state = a single seed segment written into the segments buffer at creation via `mappedAtCreation`.
+- `branch.wgsl` no longer takes vertex-buffer instance attributes; it reads everything from the segment storage buffer.
+
+### Notes
+- ~5 sim ticks @ 2 Hz fills out the plant, so the user can watch it grow over ~3 seconds before it stabilizes.
+- All pipelines still use `cullMode: 'none'` (carried from v0.1). Back-face culling will come once verified on device.
+- No leaves yet — those are v0.2.1.
 
 ## v0.1.1 — Camera traversal (2026-05-11)
 

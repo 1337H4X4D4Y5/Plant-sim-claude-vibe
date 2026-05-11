@@ -31,14 +31,14 @@ Each shipped version is snapshotted into `/checkpoints/vX.Y/` as a standalone bu
 
 ## v0.2 — GPU growth (M2)
 
-- [ ] Segment SSBO layout + buffer allocation (`src/gpu/buffers.ts`)
-- [ ] Genome layout + CPU mirror (`src/sim/genome.ts`)
-- [ ] Fixed-step sim scheduler with accumulator (`src/sim/scheduler.ts`)
-- [ ] `growth.wgsl` compute kernel: tip extension, branch, leaf, die
-- [ ] Single plant grows from a seed via L-system rules
-- [ ] Instanced leaf quads with basic shading (`src/render/leaves.ts`, `leaf.vs.wgsl`, `leaf.fs.wgsl`)
-- [ ] Vertex-shader wind animation (sum-of-sines)
-- [ ] Snapshot build into `/checkpoints/v0.2/`; flip v0.2 card on hub to shipped
+- [x v0.2] Segment storage buffer (48 B × 2048 slots) + atomic append counter
+- [x v0.2] Genome uniform layout (32 B, 6 active fields)
+- [x v0.2] Fixed-step sim scheduler with accumulator (2 Hz, 0.6 s startup delay)
+- [x v0.2] `growth.wgsl` compute kernel: tip extension, lateral branching, depth termination, saturation handling
+- [x v0.2] Single plant grows from a seed via L-system-like rules driven by genome
+- [ ] Instanced leaf quads with basic shading — **deferred to v0.2.1**
+- [x v0.2] Vertex-shader wind animation (world-position sum-of-sines)
+- [x v0.2] Snapshot build into `/checkpoints/v0.2/`; flip v0.2 card on hub to shipped
 
 ## v0.3 — Many plants + LOD + cull (M3)
 
