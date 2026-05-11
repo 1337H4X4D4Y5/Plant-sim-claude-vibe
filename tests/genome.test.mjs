@@ -152,28 +152,36 @@ function mutateGenome(parent) {
 // Height estimator + per-type ceilings
 // ---------------------------------------------------------------------------
 
-// Worst case in growth.wgsl: a chain of `maxDepth + 1` segments using the
-// `continuation` length scale (g.lenScale) all the way up, plus per-segment
-// random jitter capped at +10% (`0.9 + r*0.2` peaks at 1.1).
+// Worst case in growth.wgsl: each segment's length is `parent.len * lenScale
+// * jitter` where jitter ∈ [0.9, 1.1]. The +10% jitter *compounds* across
+// segments: chain N levels deep can reach
 //
-//   height = seedLength * sum_{i=0..maxDepth}(lenScale^i) * 1.10
+//   seedLength * Σ_{i=0..maxDepth} (lenScale * 1.10)^i
+//
+// For tree with lenScale = 0.93 the effective ratio is 0.93 × 1.10 = 1.023,
+// which is *greater than 1* — the worst-case chain grows slightly each
+// segment. The earlier estimator that applied the 1.10 only once at the
+// end (rather than per segment) under-estimated this by ~35 %.
 function estimateMaxHeight(g) {
+  const r = g.lenScale * 1.10;
+  if (r >= 1.0 - 1e-6) return g.seedLength * (g.maxDepth + 1) * Math.max(r, 1.0);
   let sum = 0;
-  for (let i = 0; i <= g.maxDepth; i++) sum += Math.pow(g.lenScale, i);
-  return g.seedLength * sum * 1.10;
+  for (let i = 0; i <= g.maxDepth; i++) sum += Math.pow(r, i);
+  return g.seedLength * sum;
 }
 
-// Ceilings encode "would surprise the user". They're computed from the
-// typeBounds() maxima:
-//   seedLength_max * sum_{i=0..maxDepth_max}(lenScale_max^i) * 1.10
-// then rounded up to a clean number. A grass at 5 m or a tree at 20 m
-// would fail this; a tree at 10 m (the actual max with current bounds)
-// passes. Tighten typeBounds() if these feel too generous.
+// Ceilings derived from the typeBounds() maxima plugged into the corrected
+// estimator + a small buffer:
+//   tree  : 1.40 * Σ_{i=0..8}(1.023^i)   = 14.06 m → ceiling 14.5
+//   bush  : 0.80 * Σ_{i=0..6}(0.792^i)   =  3.09 m → ceiling 3.3
+//   grass : 0.28 * Σ_{i=0..5}(0.902^i)   =  1.32 m → ceiling 1.4
+//   flower: 0.45 * Σ_{i=0..4}(0.792^i)   =  1.49 m → ceiling 1.6
+// 20 m runtime cap in growth.wgsl catches anything that escapes this.
 const TYPE_CEILING = {
-  0: 11.0,  // tree (math max ~10.6)
-  1:  3.2,  // bush (math max ~2.9)
-  2:  1.4,  // grass (math max ~1.2)
-  3:  1.6,  // flower (math max ~1.5)
+  0: 14.5,  // tree
+  1:  3.3,  // bush
+  2:  1.4,  // grass
+  3:  1.6,  // flower
 };
 
 // ---------------------------------------------------------------------------

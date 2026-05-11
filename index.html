@@ -382,6 +382,12 @@
         desc: 'Night cycle removed. Sun now traces a pure dawn → noon → dusk arc and wraps back to dawn — no underground phase, no dark sky. Cycle shortened 300 s → 240 s since the night portion is gone. Sunrise/sunset golden-hour colour still happens at the start and end of each cycle.',
       },
       {
+        id: 'v0.4.8',
+        title: 'Height cap + NaN guards',
+        status: 'shipped',
+        desc: 'Fixes "exploding huge sticks" reported at speed 10×. Growth kernel terminates any tip whose world Y exceeds 20 m; branch + leaf vertex shaders skip rendering segments with NaN / huge positions or impossible lengths. Unit test estimator corrected — the +10 % length jitter compounds per segment, so the actual worst-case tree is 14 m not 10.6 m. Ceilings updated to match.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

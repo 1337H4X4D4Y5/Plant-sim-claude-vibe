@@ -6,7 +6,35 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.7 removes the night cycle. Next: more visible polish, maybe a more varied sky during golden hour._
+_v0.4.8 hardens runtime + corrects the unit-test estimator. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+
+## v0.4.8 — Height cap + NaN guards (2026-05-11)
+
+User screenshot at speed 10× showed a forest of thin near-infinite vertical streaks coming up out of the field. Two things fixed and one harden-up.
+
+### Fix: jitter compounds across the chain
+`growth.wgsl` sets `child.len = parent.len * lenScale * (0.9 + r * 0.2)`. Each child gets an independent ±10 % jitter. The earlier unit-test estimator multiplied the *whole geometric sum* by 1.10 once at the end — missing that the +10 % stacks per segment. With `lenScale × 1.10`, a tree at `lenScale = 0.93` has an effective ratio of **1.023 > 1**, so the worst-case chain grows slightly each segment. Actual worst-case heights:
+
+- tree   — 14.06 m (was thought to be 10.6 m)
+- bush   —  3.09 m
+- grass  —  1.32 m
+- flower —  1.49 m
+
+Test ceilings updated to match. The test now correctly rejects mutations that would exceed those mathematically-derived bounds.
+
+### Fix: runtime cap
+`growth.wgsl` now bails any tip whose `tipPos.y > 20.0` or is `NaN`. 20 m is comfortably above the legitimate tree max (~14 m); anything taller is a sign of garbage state. Cheap check, prevents runaway.
+
+### Fix: NaN / Inf safety in render
+`branch.wgsl` and `leaf.wgsl` vertex shaders now also bail on:
+- `s.len <= 0 || s.len > 30` (impossible lengths)
+- `s.len != s.len` (NaN)
+- `abs(s.pos.y) > 100` or any `pos.{x,y,z} != itself` (NaN / Inf position)
+
+A single corrupted segment can no longer rasterize as a 50 m vertical streak — bad data is silently collapsed to a degenerate triangle.
+
+### Why those streaks happened
+Most likely cause: a rare NaN propagating through `quatFromUp(normalize(...))` when phototropism `mix` happens to pull a near-vertical-down direction back through zero. Even if the user-visible runtime never repeats it, the defensive guard above stops one bad segment from corrupting a frame.
 
 ## v0.4.7 — Perpetual daylight (2026-05-11)
 
