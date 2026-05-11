@@ -6,7 +6,20 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.6 tightens mutation bounds and makes the speed slider visible again. Next: visual highlight of the inspected plant, or more variety inside each plant type._
+_v0.4.7 removes the night cycle. Next: more visible polish, maybe a more varied sky during golden hour._
+
+## v0.4.7 — Perpetual daylight (2026-05-11)
+
+User asked to drop the night cycle.
+
+### Changed
+- **`computeSky(t)` simplified.** Previously the sun's phase went 0 → π (day) → 2π (night). Now phase = `cyclePos * π` for the whole cycle: the sun rises east, climbs to zenith, sets west, and wraps back to dawn. No underground phase.
+- **Cycle length 300 s → 240 s.** The night portion was 22% of the previous loop; removing it leaves a 4-minute day cycle which matches roughly the same "perceived day" duration.
+- **Elevation floored at 0.02** rather than clamping the negative half. Ensures the colour-by-elevation math still has a tiny dawn/dusk warm-amber colour at the seam where the sun teleports from west horizon back to east horizon.
+- Ambient lights re-balanced — they previously had a deliberate "cool blue at night" lean which is now wasted.
+
+### Notes
+- The sky shader's `nightW` palette weight is still in the WGSL — it just rarely fires now because `sunY` only briefly dips toward 0 at sunrise/sunset and never goes negative. The seam at `cyclePos == 1` produces a sub-frame "blink" as `cosP` flips from west to east, but the sun's near-horizon brightness is dim enough that it isn't visually jarring.
 
 ## v0.4.6 — Type-aware bounds + visible slider (2026-05-11)
 
