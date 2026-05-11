@@ -6,7 +6,30 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.1 gives every plant its own genome. Next chunk of M3: GPU frustum culling + indirect draws (v0.3.2), then LOD buckets + impostors (v0.3.3)._
+_v0.3.2 ships much wider per-plant variation. Next chunk of M3: GPU frustum culling + indirect draws (v0.3.3), then LOD buckets + impostors (v0.3.4)._
+
+## v0.3.2 — Wider per-plant variation (2026-05-11)
+
+User feedback: "They all grow at the same rate and approximately the same shape and size. I want more variation."
+
+Three things were limiting variation in v0.3.1 — all fixed here.
+
+### Fixed
+- **The growth kernel was hardcoding length/radius scales.** It used `0.85, 0.78` for continuation and `0.70, 0.60` for lateral, ignoring the `lenScale`/`radScale` fields on each plant's genome. Now the continuation uses `g.lenScale` directly; lateral branches are `g.lenScale * 0.82` and `g.radScale * 0.77`. A plant with `g.lenScale = 0.65` and `g.radScale = 0.55` rapidly shrinks (chunky shrub), while `0.95 / 0.85` grows tall and thick.
+- **All seeds were identical.** Every plant's seed had the same `length: 0.85, radius: 0.16`. Now each plant pulls `seedLength` and `seedRadius` from its genome — CPU-only fields generated alongside the GPU-side ones in `makeGenome`.
+- **Phototropism was barely visible.** `growthBias * 0.08` is too small to droop. Bumped to `0.20` so the new negative-bias range actually pulls tips downward.
+
+### Widened (all in `makeGenome`)
+- `branchAngle`: 0.30–1.00 rad (was 0.40–0.80)
+- `branchProb`: 0.30–0.95 (was 0.55–0.90)
+- `lenScale`: 0.65–0.95 (was 0.80–0.90)
+- `radScale`: 0.55–0.87 (was 0.72–0.82)
+- `maxDepth`: 4–8 (was 5–7) — bushes vs. trees
+- `growthBias`: -0.40 to 1.45 (was 0.40–1.40) — negative = droopy
+- `seedLength`: 0.55–1.45 m (new)
+- `seedRadius`: 0.10–0.28 m (new)
+
+You should now see clear silhouette variation: short bushy plants, tall narrow saplings, broad-canopy specimens, and a few that droop downward.
 
 ## v0.3.1 — Per-plant genomes (2026-05-11)
 

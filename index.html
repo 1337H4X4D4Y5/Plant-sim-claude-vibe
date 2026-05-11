@@ -286,6 +286,12 @@
         desc: 'Genome promoted from a 32 B uniform to a `array<Genome>` storage buffer; each plant gets its own random branching angle, branch probability, max depth, growth bias, and leaf shape. Growth and leaf shaders index by `plantIdx = segIdx / segsPerPlant`. Leaf-shape button gains a "varied" state that respects per-plant genomes, plus 5 override states that force the whole field to one species.',
       },
       {
+        id: 'v0.3.2',
+        title: 'Wider per-plant variation',
+        status: 'shipped',
+        desc: 'Three fixes for the "all plants look the same" problem: growth kernel now actually uses g.lenScale & g.radScale (was hardcoded); seed length and trunk thickness are per-plant; phototropism is 2.5× stronger and growthBias goes negative for droopy plants. Genome ranges widened across the board — bushes next to skyscraper trees, plus a few willow-droopers.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
