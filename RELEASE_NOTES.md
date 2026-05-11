@@ -6,7 +6,23 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2 done. Next: v0.3 — spawn 500 plants on a grid (each with its own `leafShape`), GPU frustum cull, 3-bucket LOD with impostors._
+_v0.3.0 ships many plants on a grid with a shared genome. Next: per-plant genomes (v0.3.1), then GPU frustum cull + LOD (v0.3.2+)._
+
+## v0.3.0 — Many plants on a grid (2026-05-11)
+
+First chunk of M3. Replace the single-plant simulation with an 8×8 grid of plants, all sharing one genome for now so we can verify the per-plant-slot architecture before adding per-plant genomes.
+
+### Changed
+- **`CONFIG.sim` extended:** `maxPlants: 64`, `segsPerPlant: 128`. `maxSegs` becomes a getter that derives `64 × 128 = 8192` total slots. Grid spacing + jitter exposed too.
+- **`SimParams` gains `segsPerPlant`** in the 4th `u32` slot (replaces `_pad`). The growth kernel reads it to compute `plantIdx = i / segsPerPlant`.
+- **`Counters` storage struct restructured.** The single global `next` is gone; its slot is reused as `totalSegs` (aggregate count for the HUD). Tail of the struct is now a runtime-sized `array<atomic<u32>>` of per-plant next-free counters. CPU initialises each one to `1` (the seed). 16-byte header keeps the existing readback layout intact.
+- **`createSimResources` initialises N seeds** at offsets `p × segsPerPlant`, one per plant, with grid + deterministic-jitter world positions.
+- **Growth kernel:** per-tip atomic now bumps `counters.plantNext[plantIdx]` instead of the global counter. Plants saturate independently — running out of slots on one plant doesn't stop others. `counters.totalSegs` gets the aggregate.
+- **Camera defaults pulled back:** `initialDistance: 24`, `target.y: 2`, `maxDistance: 120` so the field is visible on first load.
+
+### Notes
+- All 64 plants share one genome (same leaf shape, same branching). Visually they vary because the growth RNG keys off segment index, so each plant's tips draw different jitter — they're not identical clones. v0.3.1 will give each plant its own genome.
+- No frustum culling / LOD yet — every segment runs through the vertex stage. 8192 cylinder instances at ~48 verts each is well within mobile budget.
 
 ## v0.2.9 — Species-shaped leaves (2026-05-11)
 
