@@ -328,6 +328,12 @@
         desc: '0× → 10× speed slider in the HUD. Scales the dt that drives the sim-tick accumulator, the evolution loop, and the day-night cycle — sun moves faster, plants grow faster, generations turn over faster. 0 pauses the sim cleanly while rendering keeps running at 60 fps.',
       },
       {
+        id: 'v0.3.9',
+        title: 'Longer day + height shadows',
+        status: 'shipped',
+        desc: 'Day cycle 90 s → 300 s. Light grid switches from `atomicAdd` of count to `atomicMax` of canopy height (cm-encoded). Ground darkens by the tallest canopy in a 3×3 read — taller trees cast darker shadows. Foundation for v0.4 where leaves test their own height against the grid to compute per-plant captured-sun fitness.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

@@ -6,7 +6,17 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.8 adds the user-requested speed slider. v0.4 next: read the light grid back into per-plant fitness scores so evolution actually selects for sun-catching plants._
+_v0.3.9 swaps the light grid to `atomicMax(height)` and stretches the day to 5 min. v0.4.0 next: per-leaf shadow test against the grid + per-plant accumulator + readback → real GPU-driven competition for sun._
+
+## v0.3.9 — Longer day + height-based shadow grid (2026-05-11)
+
+### Changed
+- **Day cycle 90 s → 300 s.** The cycle still wraps but a single day takes 5 real-time minutes at speed 1×. At 10× speed it's 30 s — long enough to actually watch the sun arc and short enough to see multiple cycles.
+- **Light grid encoding flipped.** Previously each cell `atomicAdd`'d a depth-weighted *count* of canopy splats; now each cell holds the *height* of the tallest splat that landed there, encoded as `u32(y_world × 100)` so we can use `atomicMax`. This is the data structure v0.4 needs to ask "is anyone taller than me at my (x, z)?".
+- **`ground.wgsl` shadow uses the height.** 3×3 max-pool of canopy height read off the grid; ground darkens as `1 − height × 0.10`, clamped to `[0.25, 1]`. Taller trees now cast visibly darker shadows than bushes. The previous count-based shadow over-darkened dense canopies of low brush.
+
+### Why this is just half the work
+"Plants compete for sun" needs (a) the height grid we just shipped *and* (b) per-leaf shadow tests that aggregate into per-plant captured-sun scores. (b) is v0.4.0 — a new `capture` compute kernel, a per-plant `atomic<u32>` accumulator buffer, an async readback, and an evolution fitness function that uses the readback instead of the v0.3.5 CPU heuristic.
 
 ## v0.3.8 — Sim speed slider (2026-05-11)
 
