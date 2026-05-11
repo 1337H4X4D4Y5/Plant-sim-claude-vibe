@@ -6,7 +6,26 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_Waiting on the v0.2.3 kernel-probe readout from the user. The four atomic counters will pinpoint where the growth dispatch is failing._
+_Waiting on the v0.2.4 compile + scope readout. Whatever Safari is silently rejecting should now show up in `shaderMessages` or `gpuScopeErrors`._
+
+## v0.2.4 — Compile info + validation scopes (2026-05-11)
+
+### Reason
+v0.2.3 readout: `simTick: 27`, `dispatched: 0`, all kernel probes 0, `errors: (none)`. The compute kernel never runs but nothing is reporting an error. Most likely something in pipeline creation, bind-group creation, or the dispatch itself is being rejected without firing the `uncapturederror` event on this Safari build.
+
+### Added
+- **`compileShader(device, code, label)` helper.** Creates each shader module inside its own `validation` error scope, then immediately calls `module.getCompilationInfo()` and stashes every message into `debugState.shaderMessages[label]`. The Copy debug dump now prints all four shader's compilation messages.
+- **`withScope(device, label, fn)` helper.** Wraps any sync GPU-creation call in a `pushErrorScope('validation')` / `popErrorScope()` pair. Used around `createGrowthPipeline`, the growth bind-group, and the three render-pipeline create functions. Anything WebGPU silently rejects now lands in `debugState.gpuScopeErrors`.
+- **First-tick frame is wrapped in a validation scope** that pops asynchronously after submit. Catches any per-dispatch / per-pass validation error.
+- Refactored `createGrowthPipeline`, `createBranchRenderer`, `createFullscreenRenderer` to accept a pre-compiled module instead of source code, so the validated module is the same one that ends up in the pipeline.
+
+### How to read v0.2.4
+After ~5 seconds:
+- If `shaderMessages.growth` contains lines starting with `error:` → WGSL compilation failure. The error message will tell us what to fix.
+- If `gpuScopeErrors` has a `[growth-pipeline]` entry → pipeline creation rejected. The message will say why.
+- If `gpuScopeErrors` has a `[growth-bindgroup]` entry → bind-group entries don't match the layout.
+- If `gpuScopeErrors` has a `[first-tick-frame]` entry → the dispatch itself was rejected (rare).
+- If all of the above are empty but `dispatched` still 0 → device-level bug, escalate.
 
 ## v0.2.3 — Kernel probe counters (2026-05-11)
 

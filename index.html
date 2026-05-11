@@ -238,6 +238,12 @@
         desc: 'v0.2.2 + three extra atomic probes in the growth kernel: `dispatched` (thread-0 bumps every dispatch), `liveTips` (threads past the alive+tip+age gate), `maxIdx` (max sim.tick seen). Tells us whether compute is even running, and if so where threads exit.',
       },
       {
+        id: 'v0.2.4',
+        title: 'GPU growth (compile + scope diag)',
+        status: 'shipped',
+        desc: 'v0.2.3 said `dispatched: 0` — compute never runs. This build wraps every shader-module / pipeline / bind-group / first-dispatch creation in validation error scopes and captures `getCompilationInfo()` from each module, exposing whatever Safari is silently rejecting.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
