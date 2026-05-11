@@ -253,7 +253,13 @@
         id: 'v0.2.6',
         title: 'GPU growth (no reserved words)',
         status: 'shipped',
-        desc: 'After v0.2.5 a second Safari error pointed to a local variable named `ref`, which is a WGSL reserved word. Renamed to `refAxis`. With both bugs fixed the plant should finally grow on iPhone.',
+        desc: 'After v0.2.5 a second Safari error pointed to a local variable named `ref`, which is a WGSL reserved word. Renamed to `refAxis`. Plant grows on iPhone — confirmed via debug HUD.',
+      },
+      {
+        id: 'v0.2.7',
+        title: 'Leaves',
+        status: 'shipped',
+        desc: '3 camera-billboarded leaf quads per segment for any segment past depth threshold. Per-leaf hash for size/twist/color variation. Two-tone green shaded by sun + back-light.',
       },
       {
         id: 'v0.3',

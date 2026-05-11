@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1410" />
+  <title>Plant Sim v0.2.7 &mdash; GPU growth + leaves</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0d1410; color: #d7e4dc; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+    #hud {
+      position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      right: 0;
+      margin: 12px;
+      padding: 8px 10px;
+      background: rgba(13, 20, 16, 0.85);
+      border: 1px solid #2a3a32;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+      min-width: 130px;
+      max-width: 45vw;
+      z-index: 5;
+    }
+    #hud .accent { color: #7cd29a; }
+    #hud .row { white-space: nowrap; }
+    #copy {
+      pointer-events: auto;
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: rgba(124, 210, 154, 0.15);
+      color: #7cd29a;
+      border: 1px solid #4e8c69;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #copy:active { background: rgba(124, 210, 154, 0.35); }
+    #copy.ok { background: rgba(124, 210, 154, 0.35); color: #d7e4dc; border-color: #7cd29a; }
+
+    #help {
+      position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      left: 0;
+      margin: 12px;
+      padding: 8px 10px;
+      background: rgba(13, 20, 16, 0.85);
+      border: 1px solid #2a3a32;
+      border-radius: 8px;
+      font-size: 10px;
+      color: #7a8d83;
+      line-height: 1.5;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+      max-width: min(45vw, 280px);
+      z-index: 4;
+    }
+
+    #err {
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background: rgba(13, 20, 16, 0.96);
+      color: #d97766;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.7;
+      z-index: 20;
+    }
+    #err .inner { max-width: 60ch; }
+    #err code { display: block; margin-top: 12px; color: #d7e4dc; font-size: 12px; word-break: break-word; }
+
+    /* Fallback when navigator.clipboard.writeText isn't allowed (some
+       in-app browsers). User can long-press and copy from the textarea. */
+    #fallback {
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(13, 20, 16, 0.92);
+      z-index: 30;
+    }
+    #fallback .box {
+      width: min(100%, 560px);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #fallback textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 280px;
+      background: #131c17;
+      color: #d7e4dc;
+      border: 1px solid #2a3a32;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 11px;
+      resize: none;
+    }
+    #fallback .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    #fallback button {
+      padding: 8px 16px;
+      background: rgba(124, 210, 154, 0.15);
+      color: #7cd29a;
+      border: 1px solid #4e8c69;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div id="help">
+    drag = orbit<br/>
+    2-finger / shift+drag = pan<br/>
+    pinch / wheel = zoom<br/>
+    WASD &middot; Q/E
+  </div>
+
+  <div id="hud">
+    <div class="row">v0.2.7 <span class="accent">&middot;</span> <span id="fps">--</span> fps</div>
+    <div class="row"><span class="accent">tick</span> <span id="tick">0</span> <span class="accent">&middot; segs</span> <span id="segs">--</span></div>
+    <div class="row"><span class="accent">disp</span> <span id="disp">--</span> <span class="accent">&middot; live</span> <span id="live">--</span></div>
+    <button id="copy" type="button">Copy debug</button>
+  </div>
+
+  <div id="err"><div class="inner"></div></div>
+
+  <div id="fallback">
+    <div class="box">
+      <textarea id="fallback-text" readonly></textarea>
+      <div class="actions">
+        <button id="fallback-close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+  <script src="../back-to-hub.js"></script>
+</body>
+</html>

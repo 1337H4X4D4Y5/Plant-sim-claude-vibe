@@ -36,7 +36,7 @@ Each shipped version is snapshotted into `/checkpoints/vX.Y/` as a standalone bu
 - [x v0.2] Fixed-step sim scheduler with accumulator (2 Hz, 0.6 s startup delay)
 - [x v0.2] `growth.wgsl` compute kernel: tip extension, lateral branching, depth termination, saturation handling
 - [x v0.2] Single plant grows from a seed via L-system-like rules driven by genome
-- [ ] Instanced leaf quads with basic shading — **deferred to v0.2.1**
+- [x v0.2.7] Instanced leaf quads (3 per segment past depth threshold, billboarded, two-tone green, sun + back-light)
 - [x v0.2] Vertex-shader wind animation (world-position sum-of-sines)
 - [x v0.2] Snapshot build into `/checkpoints/v0.2/`; flip v0.2 card on hub to shipped
 

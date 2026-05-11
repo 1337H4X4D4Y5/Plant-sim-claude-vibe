@@ -6,7 +6,22 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2.6 should be the first working GPU-growth build on iPhone. If it grows on device, v0.3 (many plants + LOD + cull) is next._
+_v0.2 is complete. Next: v0.3 — spawn 500 plants on a grid, GPU frustum cull, 3-bucket LOD with impostors._
+
+## v0.2.7 — Leaves (2026-05-11)
+
+User confirmed v0.2.6: "The tree grows. No leaves." Adding the leaf renderer that was deferred from v0.2.
+
+### Added
+- **`shaders/leaf.wgsl`** — new vertex+fragment pair. Indexed as `instance_index = segIdx * LEAVES_PER_SEG + leafIdx`, so each segment with `depth ≥ 2.5` sprouts 3 instanced quads.
+- **Camera-billboard quads.** The view matrix's first two rows give world-space right/up, so each leaf always faces the camera. The world-space anchor is a point along the parent segment (parametric `t ≈ 0.32, 0.64, 0.96` with hash-driven jitter), offset radially by a per-leaf twist.
+- **Per-leaf variation.** A `hash32(segIdx * 17 + leafIdx + 7)` drives leaf size (0.085–0.135 m), twist offset, and a 0–1 shade value that mixes between dark and light green.
+- **Shading.** Sun-driven Lambert plus a softer back-light term (so leaves seen from below still catch some sun), tinted by the per-leaf shade. A fake normal that leans toward world-up keeps top-down lighting bright.
+- **Renderer.** `createLeafRenderer` mirrors `createBranchRenderer`; same bind-group layout (frame uniform + segments storage). `2048 segs × 3 leaves = 6144 instances × 6 verts = ~37 k vertex invocations`, ~half what branches cost. Drawn after branches with `depthCompare: 'less'`, `depthWriteEnabled: true`, no blending.
+
+### Notes
+- Leaves are solid quads for v0.2.7 — no alpha cutout / texture. They'll get prettier (proper leaf shape, fake SSS) in v0.5.
+- Threshold is fixed in the shader (`DEPTH_THRESHOLD = 2.5`) — will become a genome parameter in v0.4.
 
 ## v0.2.6 — Growth bug fix: reserved word `ref` (2026-05-11)
 
