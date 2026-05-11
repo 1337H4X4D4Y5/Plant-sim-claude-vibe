@@ -4,12 +4,20 @@ Checkboxes show the version in which an item was implemented. Empty `[ ]` = not 
 
 Version mapping: each milestone in the plan corresponds to a minor version (M1 → v0.1, M2 → v0.2, ..., M7 → v0.7). v1.0 is the first release with all milestones complete.
 
+Each shipped version is snapshotted into `/checkpoints/vX.Y/` as a standalone build. The hub at `/index.html` links to all checkpoints. Every checkpoint embeds `back-to-hub.js` for navigation back to the hub.
+
 ---
+
+## v0.0 — Hub & versioning infra
+
+- [x v0.0] Hub landing page at `/index.html` listing all versions with launch buttons
+- [x v0.0] Shared back-to-hub button snippet at `/checkpoints/back-to-hub.js`
+- [x v0.0] `TODO.md` + `RELEASE_NOTES.md` tracking files
 
 ## v0.1 — Hello plant (M1)
 
-- [ ] Vite + TypeScript scaffold (`package.json`, `vite.config.ts`, `tsconfig.json`, `index.html`)
-- [ ] WebGPU adapter/device bootstrap with feature/limits negotiation (`src/gpu/context.ts`)
+- [ ] Vite + TypeScript scaffold under `/app/` (so the hub at `/index.html` is not clobbered). Vite root = `app/`, build output to `/checkpoints/v0.1/`.
+- [ ] WebGPU adapter/device bootstrap with feature/limits negotiation (`app/src/gpu/context.ts`)
 - [ ] Swapchain + canvas resize handling, DPR cap
 - [ ] RAF loop + frame timing HUD
 - [ ] Orbit camera (mouse drag + wheel zoom) (`src/render/camera.ts`)
@@ -18,6 +26,8 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] Hand-authored static plant: CPU-built segment buffer, instanced cylinder draw (`src/render/branches.ts`)
 - [ ] Branch vertex + fragment shaders (`src/shaders/branch.vs.wgsl`, `branch.fs.wgsl`)
 - [ ] 60 fps verified on desktop Chrome
+- [ ] Snapshot build into `/checkpoints/v0.1/` and reference `../back-to-hub.js`
+- [ ] Flip v0.1 card on hub to `status: 'shipped'`
 
 ## v0.2 — GPU growth (M2)
 
@@ -28,6 +38,7 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] Single plant grows from a seed via L-system rules
 - [ ] Instanced leaf quads with basic shading (`src/render/leaves.ts`, `leaf.vs.wgsl`, `leaf.fs.wgsl`)
 - [ ] Vertex-shader wind animation (sum-of-sines)
+- [ ] Snapshot build into `/checkpoints/v0.2/`; flip v0.2 card on hub to shipped
 
 ## v0.3 — Many plants + LOD + cull (M3)
 
@@ -37,6 +48,7 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] 3-bucket LOD: near (full), mid (stride-2), far (impostor)
 - [ ] Per-genome impostor atlas with LRU slot eviction (`src/render/impostors.ts`, `impostor_bake.wgsl`)
 - [ ] 60 fps verified with 500 plants on desktop
+- [ ] Snapshot build into `/checkpoints/v0.3/`; flip v0.3 card on hub to shipped
 
 ## v0.4 — Light + evolution (M4)
 
@@ -45,6 +57,7 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] `evolve.wgsl`: seed drop with mutated genome
 - [ ] Seed germination kernel
 - [ ] Field self-populates over time (5-min observation gate)
+- [ ] Snapshot build into `/checkpoints/v0.4/`; flip v0.4 card on hub to shipped
 
 ## v0.5 — Shadows + fidelity (M5)
 
@@ -53,6 +66,7 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] Analytic sky upgrade (Hosek-cheap)
 - [ ] ACES tonemap + gamma post (`post.wgsl`)
 - [ ] Height-blended ground detail texture
+- [ ] Snapshot build into `/checkpoints/v0.5/`; flip v0.5 card on hub to shipped
 
 ## v0.6 — Interactions + UI (M6)
 
@@ -62,6 +76,7 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] Tap-to-prune (removes hit plant)
 - [ ] Tap-to-inspect (genome overlay with stats)
 - [ ] Time controls: pause, 1×, 2×, 4×, 8× scrub UI (`src/render/ui.ts`)
+- [ ] Snapshot build into `/checkpoints/v0.6/`; flip v0.6 card on hub to shipped
 
 ## v0.7 — Mobile polish (M7)
 
@@ -72,6 +87,7 @@ Version mapping: each milestone in the plan corresponds to a minor version (M1 �
 - [ ] Impostor bake throttling (N per frame cap)
 - [ ] Memory stays under 150 MB during stress
 - [ ] 60 fps locked for 60 s with 500 plants + active sim on device
+- [ ] Snapshot build into `/checkpoints/v0.7/`; flip v0.7 card on hub to shipped
 
 ## v1.0 — Public release
 
