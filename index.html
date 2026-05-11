@@ -340,6 +340,12 @@
         desc: 'GPU-driven evolution. New `capture` compute kernel: each segment tip looks up the height grid at its (x, z), checks how much canopy is above it, exponentially-falls off into a per-plant atomic accumulator. Async readback (1 Hz) populates `sim.measuredLight[]`; `fitnessScore()` now picks parents by who actually caught sun, with a genome-proxy fallback until the first readback completes.',
       },
       {
+        id: 'v0.4.1',
+        title: 'Shorter night + breeding fix',
+        status: 'shipped',
+        desc: 'Sun cycle reshaped so day is 78% of the loop and night is 22% (was 50/50). Evolution loop fixed: mature plants are now BOTH eligible parents (fitness-weighted) AND replacement targets — previously mature plants got score 0 so their genomes never propagated. Replacement rate bumped 1→3 per sim tick.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

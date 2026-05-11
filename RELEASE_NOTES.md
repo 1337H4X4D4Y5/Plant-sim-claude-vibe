@@ -6,7 +6,25 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.0 ships the GPU competition. Likely next: real-shadow ground sampling that respects sun direction (so shadows shift with the day cycle), or tap-to-inspect a plant._
+_v0.4.1 fixes the day/night ratio and a real bug in the evolution loop. Visible turnover should kick in now._
+
+## v0.4.1 — Shorter night + breeding fix (2026-05-11)
+
+Two user-reported issues.
+
+### Fixed: day/night ratio
+The sun's elevation was a straight `sin(phase)` — half the cycle was below horizon. Reshaped the wave so 78% of the cycle is day, 22% is night. The function now maps `cyclePos ∈ [0, 0.78)` to `phase ∈ [0, π]` (sunrise → sunset) and `cyclePos ∈ [0.78, 1)` to `phase ∈ [π, 2π]` (night). Sun still arcs east → zenith → west during the day and dips below the horizon for night, just briefly.
+
+### Fixed: evolution wasn't using mature plants
+`evolveStep` had inverted logic. It assigned `scores[i] = 0` to plants with `age >= retireAge` (the mature ones) and the genome-proxy / measuredLight score only to plants *younger* than `retireAge`. Targets came from the mature pool, but parents came from the immature pool — so a plant's slot got replaced by an offspring of some random newborn, and surviving mature genomes never propagated. This made evolution essentially genetic drift in the wrong direction, and crucially meant v0.4.0's GPU-measured fitness was never actually consulted (mature plants had score 0).
+
+Now: only mature plants enter the pool. They're both eligible parents (weighted by fitness — measured-light if available, genome proxy as fallback) and eligible replacement targets (uniform random). Newborns sit out until they age in.
+
+### Tuned
+- `EV.perTick: 1 → 3`. Three replacements per sim tick → visible churn at 1× speed within seconds of the first generation maturing.
+
+### Expected behavior
+At 1× speed, ~12 s after sim start, the first generation matures. Replacement kicks in at 3/0.5 s = 6/sec. After 1–2 minutes the field's mean genome has shifted toward sun-catching shapes. Crank the speed slider to 5–10× to compress this.
 
 ## v0.4.0 — Plants compete for sun (2026-05-11)
 
