@@ -6,7 +6,26 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.9 swaps the light grid to `atomicMax(height)` and stretches the day to 5 min. v0.4.0 next: per-leaf shadow test against the grid + per-plant accumulator + readback → real GPU-driven competition for sun._
+_v0.4.0 ships the GPU competition. Likely next: real-shadow ground sampling that respects sun direction (so shadows shift with the day cycle), or tap-to-inspect a plant._
+
+## v0.4.0 — Plants compete for sun (2026-05-11)
+
+The M4 milestone hits. Evolution is no longer driven by a CPU genome heuristic — plants that physically caught more sun out-compete plants that didn't.
+
+### Added
+- **`capture` compute kernel in `light.wgsl`.** One thread per segment slot. For each alive non-trunk segment it computes its tip's (x, y, z), reads the cell's max height off `lightGrid` (the v0.3.9 atomicMax grid), takes the `max(0, maxH − own_y)` gap, exponentially decays it (`exp(-gap × 1.2)`), and `atomicAdd`s the result × 1000 into `plantLight[plantIdx]`. Tip above everyone else = full sun = +1000 per frame. Tip 1 m below = +300. Tip 2 m below = +90. The exponential makes height advantage decisive.
+- **`plantLight` storage buffer.** `maxPlants × 4 B` of `atomic<u32>`. Zeroed on the CPU each frame via `queue.writeBuffer` (cheaper than a GPU clear kernel for this small buffer) then filled by `capture`.
+- **Three light passes per frame instead of one combined.** WebGPU guarantees inter-pass memory visibility, so `clear → splat → capture` each gets its own `beginComputePass`/`end`. Splat reads have to be visible to capture before it loads from `lightGrid`.
+- **`readPlantLight()` async readback.** Mirrors the existing counter-readback pattern: `copyBufferToBuffer` into a 1 KB staging buffer with `MAP_READ`, `mapAsync`, copy out into `sim.measuredLight[]`. Fires every ~1 s.
+- **`fitnessScore(plantIdx)`** now prefers the GPU-measured value (when `measured > 200`) and falls back to the v0.3.5 genome proxy for plants too young to have data yet.
+- **`totalLight`** appears in the Copy-debug dump so you can verify the readback is actually arriving.
+
+### How to tell it's working
+After ~30 s the field should start visibly stratifying: plants that grew up under tall neighbours get replaced more often than those that punched through to the canopy top. Over a couple of minutes, tall genomes (high `seedLength`, high `lenScale`, high `maxDepth`) dominate. Tap **Copy debug** and watch `totalLight` climb as more plants reach the canopy.
+
+### Notes
+- Shadow gap is measured straight up — sun direction is *not* yet baked into the cell lookup. v0.4.1 or later can offset the lookup by the sun azimuth to simulate "shadow follows the sun".
+- The per-plant accumulator is reset every frame, so `measuredLight` reflects the latest frame, not a moving average. For a noisier-but-broader signal, the CPU side could smooth it.
 
 ## v0.3.9 — Longer day + height-based shadow grid (2026-05-11)
 

@@ -334,6 +334,12 @@
         desc: 'Day cycle 90 s → 300 s. Light grid switches from `atomicAdd` of count to `atomicMax` of canopy height (cm-encoded). Ground darkens by the tallest canopy in a 3×3 read — taller trees cast darker shadows. Foundation for v0.4 where leaves test their own height against the grid to compute per-plant captured-sun fitness.',
       },
       {
+        id: 'v0.4.0',
+        title: 'Plants compete for sun',
+        status: 'shipped',
+        desc: 'GPU-driven evolution. New `capture` compute kernel: each segment tip looks up the height grid at its (x, z), checks how much canopy is above it, exponentially-falls off into a per-plant atomic accumulator. Async readback (1 Hz) populates `sim.measuredLight[]`; `fitnessScore()` now picks parents by who actually caught sun, with a genome-proxy fallback until the first readback completes.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
