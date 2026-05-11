@@ -6,7 +6,27 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2 done. Next: v0.3 — spawn 500 plants on a grid, GPU frustum cull, 3-bucket LOD with impostors._
+_v0.2 done. Next: v0.3 — spawn 500 plants on a grid (each with its own `leafShape`), GPU frustum cull, 3-bucket LOD with impostors._
+
+## v0.2.9 — Species-shaped leaves (2026-05-11)
+
+User wanted leaves to look like leaves, not rectangles — and to vary by species.
+
+### Added
+- **`leafShape` field on the genome uniform** (replaced the unused `_pad0` slot at offset 24 — so the struct size is unchanged at 32 B). Values:
+  - `0` — oval / lanceolate (default)
+  - `1` — round / orbicular (birch-ish)
+  - `2` — lance / willowy (narrow, pointed both ends)
+  - `3` — lobed / maple-ish (5-lobed via polar `cos(5θ)` modulation)
+  - `4` — heart / cordate (cardioid curve)
+- **Silhouette in the fragment shader.** Each leaf instance is still a quad; the fragment shader runs `leafMask(uv, shape)` and `discard`s pixels outside the shape. UV is forwarded from VS as `(q.x, q.y)` ∈ [-0.5, 0.5] × [0, 1] (already what the billboard math uses, no extra work).
+- **Per-species color bias.** Oval = classic green, birch = yellower, willow = cooler/teal, maple = punchier saturation, heart = red-tinged. Sun + back-light still applied on top.
+- **Tighter quad bounds for narrow species.** The `lance` shape scales the quad's horizontal extent to 55 % so we don't pay for the alpha-test discard on huge swathes of empty quad.
+- **Leaf bind-group gained a genome uniform binding** (`@group(0) @binding(2)`) — same buffer the growth compute already uses, so no new resources.
+- **Hub button: "Leaf: oval ›".** Tapping cycles to the next species and `queue.writeBuffer`s only the 4-byte `leafShape` slot of the genome uniform. The change is visible on next frame.
+
+### Notes
+- Trunk/branch shape isn't species-aware yet — only the leaves change. v0.4 will let the GA mutate every genome field, including `leafShape`, so each evolved lineage will inherit and drift its species traits.
 
 ## v0.2.8 — Leaves sway with wind (2026-05-11)
 

@@ -268,6 +268,12 @@
         desc: 'Same `windOffset(worldPos, time)` from branch.wgsl applied to the leaf anchor before billboarding, so leaves track the branch chunk they\'re pinned to instead of staying put while the branches sway.',
       },
       {
+        id: 'v0.2.9',
+        title: 'Species-shaped leaves',
+        status: 'shipped',
+        desc: '`leafShape` added to the genome uniform; the leaf fragment shader carves the silhouette via discard. 5 starter species — oval, round (birch), lance (willow), lobed (maple), heart (cordate) — each with its own color bias. HUD button cycles species so you can preview the variation that v0.3+ will hand out per-plant.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
