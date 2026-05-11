@@ -6,7 +6,22 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.3 unifies shadow casting across ground, branches and leaves. Next plausible step: fake leaf SSS (translucent back-light) for v0.5 fidelity._
+_v0.4.4 ships tap-to-inspect. Next plausible step: visual highlight of the selected plant, tap-to-plant a new seed, or v0.5 fidelity polish._
+
+## v0.4.4 — Tap to inspect (2026-05-11)
+
+The first M6 interaction shipped early. Tap any plant in the field to read out its genome.
+
+### Added
+- **Tap detection** on the canvas. Per-pointer tracking of `(x, y, t, moved)`. A tap is a `pointerup` with `moved < 8 px` and `dt < 350 ms` — anything else is a camera gesture and is left to the camera handlers (which capture the same pointer events independently).
+- **`pickPlantAt(clientX, clientY)`** — reconstructs the camera ray from the tap NDC via the cached `invViewProj`, then runs ray-vs-sphere against every plant's bounding sphere (radius 5 m, centred 4 m above the seed position). Closest hit wins.
+- **`#inspect` panel.** Bottom-centre floating card. Title shows `Plant #N — species`. Body lists `pos`, `age` in ticks, current `light` reading, plus the full genome: `branchAngle`, `branchProb`, `lenScale`, `radScale`, `maxDepth`, `growthBias`, `barkHue`, `seedLen`, `seedRad`. Dismissable with the `×` close button.
+- **`applyMat4Vec4(m, x, y, z, w)`** math helper for the picking math.
+
+### Notes
+- Bounding sphere is fixed-radius rather than computed from each plant's actual canopy extent. Tall trees may be tappable slightly off-canopy and short bushes may be over-generous, but the picking is stable for normal interaction.
+- No GPU readback in the picking path — the CPU mirrors (`cpuPlantPositions`, `cpuGenomes`, `cpuPlantBirthTick`, `measuredLight`) provide everything the panel shows.
+- Doesn't visually highlight the picked plant yet. A small uniform + branch/leaf FS tweak is a v0.4.5 candidate.
 
 ## v0.4.3 — Plant self-shadowing (2026-05-11)
 

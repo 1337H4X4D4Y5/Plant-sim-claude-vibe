@@ -358,6 +358,12 @@
         desc: 'Same raymarch added to branch.wgsl and leaf.wgsl. Plant geometry now shades itself based on neighbour canopies — short plants under tall trees look visually shaded, matching the GPU-measured fitness. Branches and leaves each bind the light grid as fragment storage and run the 8-step march per fragment.',
       },
       {
+        id: 'v0.4.4',
+        title: 'Tap to inspect',
+        status: 'shipped',
+        desc: 'Tap any plant to pop up a panel showing its genome (branchAngle, branchProb, lenScale, radScale, maxDepth, growthBias, leafShape, barkHue, seedLen, seedRad), age in sim ticks, and current captured-sun reading. CPU ray-vs-bounding-sphere picking against the existing `cpuPlantPositions`; no GPU readback.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
