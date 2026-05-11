@@ -6,7 +6,31 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2.5 should be the first working GPU-growth build. If it grows on device, v0.3 (many plants + LOD + cull) is next._
+_v0.2.6 should be the first working GPU-growth build on iPhone. If it grows on device, v0.3 (many plants + LOD + cull) is next._
+
+## v0.2.6 — Growth bug fix: reserved word `ref` (2026-05-11)
+
+### Found
+After v0.2.5 fixed the bitwise-precedence error, the diagnostic dump surfaced a *second* Safari WGSL rejection:
+
+```
+shaderMessages.growth:
+  error: Expected a Identifier, but got a ReservedWord @ 138:7
+```
+
+Line 138 was:
+
+```wgsl
+let ref = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), absY > 0.9);
+```
+
+`ref` is in the WGSL reserved-words list (reserved for a future reference-type modifier). Naga/Chrome doesn't enforce it; Safari does.
+
+### Fixed
+Renamed `ref` → `refAxis` in `growth.wgsl` (the only place it appeared).
+
+### Lesson
+The other shaders also use `in` and `out` as identifiers and compile fine, so Safari's reserved-word check isn't applied to every token in the spec's reserved list — but `ref` is definitely enforced.
 
 ## v0.2.5 — Growth bug fix: WGSL bitwise parens (2026-05-11)
 

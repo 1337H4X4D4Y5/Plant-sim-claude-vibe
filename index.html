@@ -245,9 +245,15 @@
       },
       {
         id: 'v0.2.5',
-        title: 'GPU growth (fixed)',
+        title: 'GPU growth (parens fix)',
         status: 'shipped',
-        desc: 'Diagnostic from v0.2.4 caught the actual bug: a WGSL parens issue in growth.wgsl that Safari\'s strict compiler rejects (Naga lets it through). Plant should now grow from seed live on the GPU.',
+        desc: 'Fixed the bitwise-precedence bug. Still broken on Safari — another shader bug surfaces afterward, see v0.2.6.',
+      },
+      {
+        id: 'v0.2.6',
+        title: 'GPU growth (no reserved words)',
+        status: 'shipped',
+        desc: 'After v0.2.5 a second Safari error pointed to a local variable named `ref`, which is a WGSL reserved word. Renamed to `refAxis`. With both bugs fixed the plant should finally grow on iPhone.',
       },
       {
         id: 'v0.3',
