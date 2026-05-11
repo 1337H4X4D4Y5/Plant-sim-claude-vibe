@@ -6,7 +6,40 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_Waiting on the v0.2.4 compile + scope readout. Whatever Safari is silently rejecting should now show up in `shaderMessages` or `gpuScopeErrors`._
+_v0.2.5 should be the first working GPU-growth build. If it grows on device, v0.3 (many plants + LOD + cull) is next._
+
+## v0.2.5 — Growth bug fix: WGSL bitwise parens (2026-05-11)
+
+### Found
+v0.2.4's diagnostic dump pinpointed the bug:
+
+```
+shaderMessages:
+  growth:
+    create: 1 error generated while compiling the shader:
+    116:2: Expected a ;, but got a ^
+gpuScopeErrors:
+  [growth-pipeline] createComputePipeline failed
+  [first-tick-frame] encoder state is not valid
+```
+
+The line was:
+
+```wgsl
+let seedBase = i * 73856093u ^ sim.tick * 19349663u ^ sim.rngSeed;
+```
+
+WGSL's grammar requires bitwise operators (`^`, `&`, `|`) to take **unary** expressions as operands — not arbitrary expressions. `i * 73856093u` is a multiplicative expression, so the `^` after it is a parse error. Naga (Chrome/Edge) is lenient about this; Safari's WGSL compiler enforces the spec strictly. The growth shader silently failed to compile, the compute pipeline was invalid, and every dispatch was a no-op — which is exactly why `dispatched` stayed 0.
+
+### Fixed
+Parenthesised the multiplicative terms in `growth.wgsl`:
+
+```wgsl
+let seedBase = ((i * 73856093u) ^ (sim.tick * 19349663u)) ^ sim.rngSeed;
+```
+
+### Kept
+All diagnostic instrumentation from v0.2.1 → v0.2.4 is retained so we can verify the fix on device and have the same diagnostics ready if anything else breaks.
 
 ## v0.2.4 — Compile info + validation scopes (2026-05-11)
 
