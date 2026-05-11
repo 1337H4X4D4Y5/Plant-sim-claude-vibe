@@ -6,7 +6,37 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.4 ships tap-to-inspect. Next plausible step: visual highlight of the selected plant, tap-to-plant a new seed, or v0.5 fidelity polish._
+_v0.4.5 adds four plant types. Next likely steps: highlight the inspected plant, tap-empty-ground-to-plant-a-seed, or more polish on flower / grass visuals._
+
+## v0.4.5 — Trees, bushes, grass, flowers (2026-05-11)
+
+Every plant now has a `plantType` field. Four kinds, each with its own genome ranges and rendering path.
+
+### Added
+- **`Genome` grows 32 B → 48 B** (12 f32). New fields: `plantType` (slot 8) and `flowerHue` (slot 9), plus 2 pads. Struct declared in all three shaders (`growth.wgsl`, `branch.wgsl`, `leaf.wgsl`) so they stay in lockstep.
+- **`PLANT_TYPE_NAMES = ['tree', 'bush', 'grass', 'flower']`** with `PLANT_TYPE_WEIGHTS = [0.30, 0.25, 0.35, 0.10]` for initial population.
+- **`rollByType(plantType, rand)`** picks per-type parameter ranges:
+  - **Tree** — branchAngle 0.30–1.00 rad, lenScale 0.75–0.95, maxDepth 5–8, seedLength 0.7–1.5 m.
+  - **Bush** — wide branching angle (0.7–1.3), high `branchProb` (0.85+), shorter and chunkier (maxDepth 4–6, seedLength 0.3–0.75).
+  - **Grass** — near-vertical (branchAngle 0.04–0.16), zero-ish branching, slender (seedRadius ~0.02 m, lenScale ~0.85–0.95), shoots straight up.
+  - **Flower** — short stem (maxDepth 3–4, seedLength 0.18–0.53), sparse branching, strong phototropism so the bud reaches up.
+- **`pickPlantType(rand)`** does the weighted draw.
+- **`mutateGenome`** has a 4 % chance per generation to jump to a different plant type; when it does, the whole shape is re-rolled with the new type's ranges but `leafShape`, `barkHue`, and `flowerHue` are inherited so the lineage stays visually related.
+
+### Shader changes
+- **`branch.wgsl`** FS branches on `plantType`:
+  - `plantType == 2` (grass): albedo is a green dark→light gradient by depth.
+  - `plantType == 3` (flower): albedo is a slender green stem colour.
+  - otherwise: the v0.3.4 bark gradient tinted by `barkHue`.
+  - `plantType` passes VS→FS as `@interpolate(flat) u32` at `@location(4)`.
+- **`leaf.wgsl`** VS skips rendering entirely for grass instances (collapses every leaf quad to a degenerate triangle). FS overrides the green leaf albedo with an HSV→RGB petal colour when `plantType == 3`, driven by the per-plant `flowerHue`.
+
+### UI
+- Inspect panel title now reads `Plant #N — type / leafShape`. New `type` and `flowerHue` rows in the body.
+
+### Notes
+- Grass and flower silhouettes are still cylinder-based; they're recognisable by size + colour but don't have authentic blade or petal geometry. Could refine in a future pass.
+- Per-type counts: roughly 76 trees, 64 bushes, 90 grass blades, 26 flowers per 256-plant field.
 
 ## v0.4.4 — Tap to inspect (2026-05-11)
 

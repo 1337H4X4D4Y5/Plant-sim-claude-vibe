@@ -364,6 +364,12 @@
         desc: 'Tap any plant to pop up a panel showing its genome (branchAngle, branchProb, lenScale, radScale, maxDepth, growthBias, leafShape, barkHue, seedLen, seedRad), age in sim ticks, and current captured-sun reading. CPU ray-vs-bounding-sphere picking against the existing `cpuPlantPositions`; no GPU readback.',
       },
       {
+        id: 'v0.4.5',
+        title: 'Trees, bushes, grass, flowers',
+        status: 'shipped',
+        desc: '`plantType` added to the genome (32B → 48B). Four kinds with their own growth-parameter ranges: trees, bushes, grass blades (slender green, no leaves), and flowers (short stem topped with HSV-coloured petals from a new `flowerHue` field). Branch FS picks albedo by type; leaf FS skips grass and repaints leaves as petals for flowers. Mutation occasionally jumps type with parent-style continuity for shape/colour.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
