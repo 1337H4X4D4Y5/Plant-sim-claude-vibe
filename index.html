@@ -352,6 +352,12 @@
         desc: 'Ground shadow now respects sun direction. 8-step raymarch from each ground pixel toward the sun, sampling the canopy-height grid along the ray; any cell whose height crosses the ray casts shade. Shadows sweep across the ground as the day progresses — long at dawn/sunset, short at noon, gone at night.',
       },
       {
+        id: 'v0.4.3',
+        title: 'Plant self-shadowing',
+        status: 'shipped',
+        desc: 'Same raymarch added to branch.wgsl and leaf.wgsl. Plant geometry now shades itself based on neighbour canopies — short plants under tall trees look visually shaded, matching the GPU-measured fitness. Branches and leaves each bind the light grid as fragment storage and run the 8-step march per fragment.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

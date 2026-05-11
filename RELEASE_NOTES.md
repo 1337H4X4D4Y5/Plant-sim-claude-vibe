@@ -6,7 +6,26 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.2 makes shadows directional. Next plausible step: extend the same raymarch idea to branch and leaf shaders so plants shade each other (right now only the ground gets the new shadow)._
+_v0.4.3 unifies shadow casting across ground, branches and leaves. Next plausible step: fake leaf SSS (translucent back-light) for v0.5 fidelity._
+
+## v0.4.3 — Plant self-shadowing (2026-05-11)
+
+The ray-march that v0.4.2 added to the ground is now in `branch.wgsl` and `leaf.wgsl` too, so plant geometry actually visually responds to neighbour canopies — short plants under tall ones look correspondingly dim.
+
+### Added
+- **`shadowCast(worldPos, sunDir)`** function in both `branch.wgsl` and `leaf.wgsl`, sharing the v0.4.2 implementation: 8 steps × 0.85 m up the sun ray, sampling `lightGrid`, feather by `smoothstep` of how deeply the canopy crosses.
+- **`lightGrid` storage binding** added at `@binding(4)` of both branch and leaf bind-group layouts (FRAGMENT-only visibility). `createBranchRenderer` and `createLeafRenderer` take a new `lightGridBuffer` parameter.
+- **FS update.** Both shaders now multiply their `sun-Lambert` term by the shadow factor: `frame.sunColor.rgb * lambert * shadow + ambient.rgb`. Ambient is unaffected so shadowed plants still pick up sky bounce.
+
+### Tuning
+- Branches: shadow strength factor 0.65 (max 65% darkening in deep shade).
+- Leaves: 0.55 (softer — leaves are physically more translucent).
+
+### Cost
+Branches contribute ~200 k fragments and leaves ~200 k (roughly). Each runs 8 storage-buffer reads. Total ~3 M extra reads/frame on top of the ground march; iPhone 15 Pro Max handles it without dropping below 60 fps in testing on similar workloads.
+
+### What you'll see
+The visible result tracks the GPU-measured fitness directly: plants that capture less sun also look dimmer. Mid-canopy and lower-canopy foliage of any tree is shaded by foliage above it, so trees gain a proper light gradient from sunlit crown to shaded interior.
 
 ## v0.4.2 — Sun-direction shadows (2026-05-11)
 
