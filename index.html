@@ -295,7 +295,13 @@
         id: 'v0.3.3',
         title: '256-plant field',
         status: 'shipped',
-        desc: '4× more plants (16×16 grid = 256), tighter grid spacing, camera defaults pulled back and pitched up, far plane bumped to 350m. ~32k segments, ~2M vertex invocations per frame — well within iPhone 15 Pro Max budget. No culling yet (every plant always drawn); v0.3.4 adds GPU frustum cull when needed.',
+        desc: '4× more plants (16×16 grid = 256), tighter grid spacing, camera defaults pulled back and pitched up, far plane bumped to 350m. ~32k segments, ~2M vertex invocations per frame — well within iPhone 15 Pro Max budget.',
+      },
+      {
+        id: 'v0.3.4',
+        title: 'Per-plant bark color',
+        status: 'shipped',
+        desc: 'Genome\'s last pad slot becomes `barkHue`. Branch shader gains its first genome binding (with sim-params for plantIdx) and tints trunk + twig colours along a warm-cherry → neutral-oak → cool-silver-birch ramp. The field now shows clear colour variation across plants on top of the shape/size variation from v0.3.2.',
       },
       {
         id: 'v0.3',

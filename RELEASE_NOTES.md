@@ -6,7 +6,19 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.3 scales to 256 plants. v0.3.4 will add GPU frustum culling + indirect draws so the per-frame cost stops scaling with `maxSegs`._
+_v0.3.4 adds per-plant bark colour. Possible next steps: leaf-size genome field, GPU frustum culling for scaling past 1k plants, or jump to v0.4 (light grid + evolution)._
+
+## v0.3.4 — Per-plant bark color (2026-05-11)
+
+### Added
+- **`Genome.barkHue`** replaces the unused `_pad1` slot at offset 28 (struct stays 32 B). `makeGenome()` rolls a uniform `[0, 1)` value per plant.
+- **Branch shader gains a genome + sim binding.** `branch.wgsl` was the only renderer still ignoring the genome; now it has the same `genomes` storage and `SimParams` uniform bindings as `leaf.wgsl`, so it can compute `plantIdx = ii / sim.segsPerPlant` and read `g.barkHue`.
+- **`tintBark(base, hue)` function in the fragment shader** maps `barkHue ∈ [0, 1]` along a three-stop ramp: 0 = warm cherry/red, 0.5 = neutral oak, 1 = cool silver-birch. Trunk and twig albedo are multiplied by the tint.
+- The bark hue interpolates `@interpolate(flat)` between VS and FS so the entire cylinder of one segment is one colour (no rainbow within a single trunk).
+
+### Notes
+- The leaf-shape cycle button still works — `writeGenome` now stamps `barkHue` into slot 7 instead of zero, so colour persists through any override pass.
+- Branches and leaves now both bind 4 entries (frame, segments storage, genomes storage, sim uniform). Identical bind-group shape across renderers will simplify future LOD work.
 
 ## v0.3.3 — 256-plant field (2026-05-11)
 
