@@ -346,6 +346,12 @@
         desc: 'Sun cycle reshaped so day is 78% of the loop and night is 22% (was 50/50). Evolution loop fixed: mature plants are now BOTH eligible parents (fitness-weighted) AND replacement targets — previously mature plants got score 0 so their genomes never propagated. Replacement rate bumped 1→3 per sim tick.',
       },
       {
+        id: 'v0.4.2',
+        title: 'Sun-direction shadows',
+        status: 'shipped',
+        desc: 'Ground shadow now respects sun direction. 8-step raymarch from each ground pixel toward the sun, sampling the canopy-height grid along the ray; any cell whose height crosses the ray casts shade. Shadows sweep across the ground as the day progresses — long at dawn/sunset, short at noon, gone at night.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

@@ -6,7 +6,25 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.1 fixes the day/night ratio and a real bug in the evolution loop. Visible turnover should kick in now._
+_v0.4.2 makes shadows directional. Next plausible step: extend the same raymarch idea to branch and leaf shaders so plants shade each other (right now only the ground gets the new shadow)._
+
+## v0.4.2 — Sun-direction shadows (2026-05-11)
+
+Replaced the straight-up "is a tall thing directly above me?" shadow lookup with a real ray-march across the canopy-height grid toward the sun.
+
+### How it works
+For each ground fragment, march 8 steps of 0.85 m up the world-space sun direction. At each step, project (x, z) into the height grid and compare the cell's max canopy height to the ray's own height. If the canopy crosses the ray, the ground point is in shadow — feathered by `smoothstep` of how deeply the canopy intrudes. Hard cap on shadow strength so shaded ground still picks up a hint of sun + full ambient.
+
+### What you'll see
+- **Noon**: shadows directly under canopies — tight pools at the base of each plant.
+- **Mid-morning / mid-afternoon**: shadows stretched east / west along the sun azimuth.
+- **Sunset / sunrise**: long raking shadows.
+- **Night**: shadows skipped entirely (sun below horizon → early-out).
+
+Costs ~8 storage-buffer reads per ground fragment. iPhone 15 Pro Max handles this easily.
+
+### Not yet
+Branches and leaves don't sample this; only the ground does. Self-shadowing of plant geometry would need the same march in `branch.wgsl` and `leaf.wgsl` — possible v0.5 work along with proper fake-SSS leaf shading.
 
 ## v0.4.1 — Shorter night + breeding fix (2026-05-11)
 
