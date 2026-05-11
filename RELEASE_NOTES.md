@@ -6,7 +6,29 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_Diagnosing the v0.2 growth issue. Once fixed, v0.3 (many plants + LOD + cull) is next._
+_Waiting on the v0.2.2 debug dump from the user to diagnose the growth issue, then on to v0.3._
+
+## v0.2.2 — Copyable debug + non-overlapping HUD (2026-05-11)
+
+### Fixed
+- HUD on iPhone was being clipped/overlapped by the help text block at the top of the screen. Both panels now live in their own corners with explicit `max-width` caps and `env(safe-area-inset-top)` respected, so they never grow into each other.
+- Help text was desktop-shaped (long lines); rewritten as a compact 4-line list and shrunk for mobile.
+
+### Added
+- **Copy debug button** inside the HUD. Tapping it writes a multi-line dump to the clipboard:
+  - version, elapsed time, userAgent, viewport size + DPR
+  - WebGPU availability, init error (if any)
+  - canvas size, swapchain format
+  - adapter info (vendor / architecture / device / description)
+  - feature list and a hand-picked set of limits (buffer sizes, alignments, compute workgroup caps)
+  - device-lost reason + message if applicable
+  - live fps, simTick, segs counter
+  - error log captured from `window.onerror` + `unhandledrejection` + init failures
+- **Fallback overlay**: if the browser blocks `navigator.clipboard.writeText` (some in-app webviews do), the dump is shown in a pre-selected textarea so the user can long-press → Copy.
+- `device.addEventListener('uncapturederror', ...)` so silent GPU validation errors land in the console.
+
+### Notes
+- Built on top of v0.2.1; behavior is identical otherwise. Use this to capture diagnostics for the v0.2 growth issue.
 
 ## v0.2.1 — GPU growth diagnostic build (2026-05-11)
 
