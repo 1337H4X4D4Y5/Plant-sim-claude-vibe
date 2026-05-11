@@ -370,6 +370,12 @@
         desc: '`plantType` added to the genome (32B → 48B). Four kinds with their own growth-parameter ranges: trees, bushes, grass blades (slender green, no leaves), and flowers (short stem topped with HSV-coloured petals from a new `flowerHue` field). Branch FS picks albedo by type; leaf FS skips grass and repaints leaves as petals for flowers. Mutation occasionally jumps type with parent-style continuity for shape/colour.',
       },
       {
+        id: 'v0.4.6',
+        title: 'Type-aware bounds + visible slider',
+        status: 'shipped',
+        desc: 'Mutation no longer drifts plants outside their type — `typeBounds(t)` is the single source of truth for both initial spawn and mutation clamps, so grass can\'t mutate into a 10 m blade. Speed slider track + thumb made noticeably larger and lighter (was nearly invisible against the dark HUD).',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

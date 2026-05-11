@@ -6,7 +6,23 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.5 adds four plant types. Next likely steps: highlight the inspected plant, tap-empty-ground-to-plant-a-seed, or more polish on flower / grass visuals._
+_v0.4.6 tightens mutation bounds and makes the speed slider visible again. Next: visual highlight of the inspected plant, or more variety inside each plant type._
+
+## v0.4.6 — Type-aware bounds + visible slider (2026-05-11)
+
+Two user-reported issues from v0.4.5.
+
+### Fixed: mutations drifted outside type
+v0.4.5 had separate bounds for initial spawn (`rollByType`) and mutation (loose `clamp(... 0.05, 1.70)` etc.). A grass parent could mutate into a 1.7 m-trunk + 0.97-lenScale + maxDepth-9 grass, growing to 10 m. Now `typeBounds(t)` is the single source of truth; both spawn and mutation use it. After many generations a grass is still grass-sized.
+
+Tighter per-type bounds across the board:
+- **tree** — `seedLength` ≤ 1.40, `lenScale` ≤ 0.93, `maxDepth` ≤ 8 → ceiling ~8 m.
+- **bush** — `seedLength` ≤ 0.80, `lenScale` ≤ 0.72, `maxDepth` ≤ 6 → ceiling ~2.5 m.
+- **grass** — `seedLength` ≤ 0.28, `lenScale` ≤ 0.82, `maxDepth` ≤ 5 → ceiling ~1.2 m.
+- **flower** — `seedLength` ≤ 0.45, `lenScale` ≤ 0.72, `maxDepth` ≤ 4 → ceiling ~1.1 m.
+
+### Fixed: speed slider invisible
+The slider's track was `#2a3a32` (dark green) on a `rgba(13, 20, 16, 0.85)` background — almost the same value, so the slider blended into the HUD panel and looked missing. The HTML and JS were intact; just the styling was off. Track lightened to `#3f6452` with a `#4e8c69` border, thumb bumped 16 px → 20 px with a dark outer ring and a soft shadow. Should be obvious now.
 
 ## v0.4.5 — Trees, bushes, grass, flowers (2026-05-11)
 
