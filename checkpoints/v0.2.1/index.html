@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1410" />
+  <title>Plant Sim v0.2.1 &mdash; GPU growth (debug)</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0d1410; color: #d7e4dc; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    #hud {
+      position: fixed; top: 12px; right: 12px;
+      background: rgba(13, 20, 16, 0.78);
+      padding: 6px 12px;
+      border: 1px solid #2a3a32;
+      border-radius: 6px;
+      font-size: 12px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+    }
+    #hud .accent { color: #7cd29a; }
+    #help {
+      position: fixed; top: 12px; left: 12px;
+      background: rgba(13, 20, 16, 0.78);
+      padding: 8px 12px;
+      border: 1px solid #2a3a32;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #7a8d83;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+      line-height: 1.5;
+    }
+    #err {
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background: rgba(13, 20, 16, 0.96);
+      color: #d97766;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.7;
+      z-index: 10;
+    }
+    #err .inner { max-width: 60ch; }
+    #err code { display: block; margin-top: 12px; color: #d7e4dc; font-size: 12px; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="hud">
+    v0.2.1 <span class="accent">&middot;</span> <span id="fps">--</span> fps<br/>
+    <span class="accent">tick</span> <span id="tick">0</span> <span class="accent">&middot;</span>
+    <span class="accent">segs</span> <span id="segs">--</span>
+  </div>
+  <div id="help">
+    drag = orbit &middot; right-drag / shift+drag / 2-finger drag = pan<br/>
+    wheel / pinch = zoom &middot; WASD = move &middot; Q/E = up/down
+  </div>
+  <div id="err"><div class="inner"></div></div>
+  <script type="module" src="./main.js"></script>
+  <script src="../back-to-hub.js"></script>
+</body>
+</html>

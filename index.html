@@ -215,9 +215,15 @@
       },
       {
         id: 'v0.2',
-        title: 'GPU growth',
+        title: 'GPU growth (broken)',
         status: 'shipped',
-        desc: 'Segments live in a storage buffer. A compute shader extends tips, branches, and terminates depth-limited shoots once per sim tick. Plant grows live from a seed. Vertex-stage wind sways branches by world-height.',
+        desc: 'Storage-buffer + compute scaffolding for GPU growth. As shipped the plant does not appear to grow on device — kept as a checkpoint for comparison. Use v0.2.1 for the diagnostic build.',
+      },
+      {
+        id: 'v0.2.1',
+        title: 'GPU growth (debug HUD)',
+        status: 'shipped',
+        desc: 'v0.2 plus a HUD showing the live sim tick + GPU segment count (via async counter readback) so we can tell whether compute is dispatching, growing, or stalled. `length` field renamed to `len` defensively.',
       },
       {
         id: 'v0.3',

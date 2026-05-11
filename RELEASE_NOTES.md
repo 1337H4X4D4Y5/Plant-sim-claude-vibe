@@ -6,7 +6,26 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2.1 (leaves) is the likely next step._
+_Diagnosing the v0.2 growth issue. Once fixed, v0.3 (many plants + LOD + cull) is next._
+
+## v0.2.1 — GPU growth diagnostic build (2026-05-11)
+
+### Reason
+User reports that the v0.2 plant does not grow on iPhone. Without a way to run a debugger on device, this build adds visibility into the GPU sim state so we can tell which subsystem is failing.
+
+### Added
+- **Live HUD line** showing the current sim `tick` (CPU-driven) and the GPU `segs` count (read back from the atomic counter every ~500 ms via `copyBufferToBuffer` → `mapAsync`).
+- Counter buffer now has `COPY_SRC` usage so the staging copy works.
+- A dedicated 16-byte staging buffer with `COPY_DST | MAP_READ` for the async readback.
+
+### Changed
+- Renamed the Segment `length` field to `len` in both `branch.wgsl` and `growth.wgsl`. `length` isn't a reserved WGSL word but it shadows the built-in vector-length function and some implementations have been buggy about that — defensive rename.
+
+### How to read the HUD
+- `tick` stays at 0 → the JS sim scheduler isn't firing.
+- `tick` grows but `segs` stays at 1 → compute is dispatching but the kernel isn't appending children (kernel bug).
+- `tick` and `segs` both grow → compute is appending, but the render isn't showing the new instances (render-side bug or sync issue).
+- `segs` reads `err` → counter readback failed; likely a device-lost from a compute validation error.
 
 ## v0.2 — GPU growth (2026-05-11)
 
