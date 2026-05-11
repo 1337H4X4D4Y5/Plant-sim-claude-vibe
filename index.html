@@ -304,6 +304,12 @@
         desc: 'Genome\'s last pad slot becomes `barkHue`. Branch shader gains its first genome binding (with sim-params for plantIdx) and tints trunk + twig colours along a warm-cherry → neutral-oak → cool-silver-birch ramp. The field now shows clear colour variation across plants on top of the shape/size variation from v0.3.2.',
       },
       {
+        id: 'v0.3.5',
+        title: 'CPU-driven evolution',
+        status: 'shipped',
+        desc: 'After tick 20 the system starts retiring mature plants and replanting their slots with mutated copies of "fit" parents (fitness = tallness + depth + uprightness, a crude proxy until v0.4\'s light grid). Mutations jitter each gene by a small amount; leaf shape rarely jumps. New plant lands near its parent. HUD shows `births` counter.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

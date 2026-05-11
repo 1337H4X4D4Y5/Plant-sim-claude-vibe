@@ -6,7 +6,27 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.4 adds per-plant bark colour. Possible next steps: leaf-size genome field, GPU frustum culling for scaling past 1k plants, or jump to v0.4 (light grid + evolution)._
+_v0.3.5 plants the first evolution loop. v0.4 will replace the CPU fitness proxy with a real top-down light-grid fitness, run mutation/selection entirely on the GPU, and let lineages emerge naturally._
+
+## v0.3.5 — CPU-driven evolution (2026-05-11)
+
+First taste of the M4 milestone. Implemented entirely on CPU — fast enough at 256 plants without needing GPU readback. v0.4 will move the fitness function to a real GPU light grid.
+
+### Added
+- **`mutateGenome(parent)`**: produces a child genome by jittering each gene by a small amount, with bounds. Leaf shape only jumps every ~12 mutations to keep visual lineage recognisable.
+- **`createSimResources` now exposes `cpuPlantPositions`, `cpuPlantBirthTick`** alongside `cpuGenomes` so the evolution loop can track who's old enough to retire and where their parent lived.
+- **`evolveStep(simTick)`**: starts firing at `simTick >= 20` (after the initial growth has settled). Each tick it:
+  1. Scores every plant via `fitnessScore` — a crude `seedLength * 1.8 + maxDepth + max(0, growthBias) * 0.8 + lenScale * 1.5` proxy.
+  2. Picks a target plant uniformly from the retirable set (age ≥ 25 ticks since birth/rebirth).
+  3. Picks a parent via roulette-wheel on the score array.
+  4. Calls `replacePlant(target, parent, tick)`.
+- **`replacePlant(target, parent, tick)`**: queues four `queue.writeBuffer` calls — new genome at the target's slot, zeroed segment range, fresh seed segment at slot 0, and counter[target]=1 — so the GPU sees the slot reset by next sim tick. New seed lands near the parent's world position with jitter.
+- **`births` counter** on the debug HUD.
+
+### Notes
+- Crude fitness; the next milestone replaces it with a real light competition.
+- 1 replacement per sim tick at 2 Hz → field fully turns over in ~2 minutes. Tune `EV.perTick` if too slow.
+- Replacement is CPU-driven so it costs nothing on the GPU compute pass — just four small writes per replacement.
 
 ## v0.3.4 — Per-plant bark color (2026-05-11)
 
