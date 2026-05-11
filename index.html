@@ -259,7 +259,13 @@
         id: 'v0.2.7',
         title: 'Leaves',
         status: 'shipped',
-        desc: '3 camera-billboarded leaf quads per segment for any segment past depth threshold. Per-leaf hash for size/twist/color variation. Two-tone green shaded by sun + back-light.',
+        desc: '3 camera-billboarded leaf quads per segment for any segment past depth threshold. Per-leaf hash for size/twist/color variation. Two-tone green shaded by sun + back-light. Leaves do not sway with the wind — see v0.2.8.',
+      },
+      {
+        id: 'v0.2.8',
+        title: 'Leaves sway with wind',
+        status: 'shipped',
+        desc: 'Same `windOffset(worldPos, time)` from branch.wgsl applied to the leaf anchor before billboarding, so leaves track the branch chunk they\'re pinned to instead of staying put while the branches sway.',
       },
       {
         id: 'v0.3',

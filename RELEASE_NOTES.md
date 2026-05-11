@@ -6,7 +6,14 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.2 is complete. Next: v0.3 — spawn 500 plants on a grid, GPU frustum cull, 3-bucket LOD with impostors._
+_v0.2 done. Next: v0.3 — spawn 500 plants on a grid, GPU frustum cull, 3-bucket LOD with impostors._
+
+## v0.2.8 — Leaves sway with wind (2026-05-11)
+
+User report: "The leaves don't sway with the tree." Branches use `windOffset(worldPos, time)` in their vertex shader to add a position-keyed sum-of-sines, but the leaf shader didn't.
+
+### Fixed
+Copied the same `windOffset` function into `leaf.wgsl` and applied it to the leaf's anchor position (the point on the parent segment) before computing the billboard. Because the wind is purely a function of world position + time, a leaf at the same world point as a branch vertex gets the same offset, so the two move in lock-step.
 
 ## v0.2.7 — Leaves (2026-05-11)
 
