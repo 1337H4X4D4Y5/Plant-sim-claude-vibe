@@ -16,18 +16,18 @@ Each shipped version is snapshotted into `/checkpoints/vX.Y/` as a standalone bu
 
 ## v0.1 — Hello plant (M1)
 
-- [ ] Vite + TypeScript scaffold under `/app/` (so the hub at `/index.html` is not clobbered). Vite root = `app/`, build output to `/checkpoints/v0.1/`.
-- [ ] WebGPU adapter/device bootstrap with feature/limits negotiation (`app/src/gpu/context.ts`)
-- [ ] Swapchain + canvas resize handling, DPR cap
-- [ ] RAF loop + frame timing HUD
-- [ ] Orbit camera (mouse drag + wheel zoom) (`src/render/camera.ts`)
-- [ ] Skydome with gradient + sun disc (`src/render/sky.ts`)
-- [ ] Ground quad (`src/render/ground.ts`)
-- [ ] Hand-authored static plant: CPU-built segment buffer, instanced cylinder draw (`src/render/branches.ts`)
-- [ ] Branch vertex + fragment shaders (`src/shaders/branch.vs.wgsl`, `branch.fs.wgsl`)
-- [ ] 60 fps verified on desktop Chrome
-- [ ] Snapshot build into `/checkpoints/v0.1/` and reference `../back-to-hub.js`
-- [ ] Flip v0.1 card on hub to `status: 'shipped'`
+- [~] Vite + TypeScript scaffold — **deferred**: npm registry is blocked in the dev sandbox; shipped v0.1 as plain ES modules + `?fetch` WGSL instead. Will reintroduce when registry is available.
+- [x v0.1] WebGPU adapter/device bootstrap with feature/limits negotiation
+- [x v0.1] Swapchain + canvas resize handling, DPR cap
+- [x v0.1] RAF loop + frame timing HUD
+- [x v0.1] Orbit camera (mouse drag + wheel zoom, touch drag + pinch)
+- [x v0.1] Skydome with gradient + sun disc (fullscreen tri + invViewProj ray reconstruction)
+- [x v0.1] Ground quad (procedural value-noise mix of soil/grass)
+- [x v0.1] Hand-authored static plant: CPU-built segment buffer, instanced cylinder draw
+- [x v0.1] Branch vertex + fragment shaders (tube reconstructed from per-instance quat + length + radius, Lambert + ambient)
+- [ ] 60 fps verified on desktop Chrome (user verification needed; sandbox cannot run a browser)
+- [x v0.1] Snapshot build into `/checkpoints/v0.1/` referencing `../back-to-hub.js`
+- [x v0.1] Flip v0.1 card on hub to `status: 'shipped'`
 
 ## v0.2 — GPU growth (M2)
 

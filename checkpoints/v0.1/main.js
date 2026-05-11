@@ -1,0 +1,634 @@
+// Plant Sim v0.1 — "Hello plant"
+// Single-file ES module: math + WebGPU init + camera + frame uniforms +
+// plant authoring + sky/ground/branch renderers + RAF loop.
+// Loaded by index.html as <script type="module" src="./main.js">.
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+const CONFIG = {
+  dprCap: 2,
+  nearPlane: 0.1,
+  farPlane: 200,
+  fovYDeg: 55,
+  camera: {
+    initialYaw: -0.6,
+    initialPitch: 0.35,
+    initialDistance: 9,
+    minPitch: -0.2,
+    maxPitch: 1.4,
+    minDistance: 2,
+    maxDistance: 50,
+    target: [0, 1.5, 0],
+    orbitSpeed: 0.005,
+    zoomSpeed: 0.0015,
+    pinchSpeed: 0.01,
+  },
+  sun: {
+    direction: [0.45, 0.78, 0.43],
+    color: [1.05, 0.97, 0.88],
+    ambient: [0.22, 0.28, 0.32],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Math (column-major Float32Array mat4, right-handed, depth 0..1)
+// ---------------------------------------------------------------------------
+
+function mat4Identity() {
+  const m = new Float32Array(16);
+  m[0] = m[5] = m[10] = m[15] = 1;
+  return m;
+}
+
+function mat4Perspective(fovYRad, aspect, near, far, out) {
+  const f = 1 / Math.tan(fovYRad / 2);
+  const o = out || new Float32Array(16);
+  o.fill(0);
+  o[0] = f / aspect;
+  o[5] = f;
+  o[10] = far / (near - far);
+  o[11] = -1;
+  o[14] = (near * far) / (near - far);
+  return o;
+}
+
+function mat4LookAt(eye, target, up, out) {
+  let fx = eye[0] - target[0];
+  let fy = eye[1] - target[1];
+  let fz = eye[2] - target[2];
+  let fl = Math.hypot(fx, fy, fz) || 1;
+  fx /= fl; fy /= fl; fz /= fl;
+
+  let rx = up[1] * fz - up[2] * fy;
+  let ry = up[2] * fx - up[0] * fz;
+  let rz = up[0] * fy - up[1] * fx;
+  let rl = Math.hypot(rx, ry, rz) || 1;
+  rx /= rl; ry /= rl; rz /= rl;
+
+  const ux = fy * rz - fz * ry;
+  const uy = fz * rx - fx * rz;
+  const uz = fx * ry - fy * rx;
+
+  const o = out || new Float32Array(16);
+  o[0] = rx; o[1] = ux; o[2] = fx; o[3] = 0;
+  o[4] = ry; o[5] = uy; o[6] = fy; o[7] = 0;
+  o[8] = rz; o[9] = uz; o[10] = fz; o[11] = 0;
+  o[12] = -(rx * eye[0] + ry * eye[1] + rz * eye[2]);
+  o[13] = -(ux * eye[0] + uy * eye[1] + uz * eye[2]);
+  o[14] = -(fx * eye[0] + fy * eye[1] + fz * eye[2]);
+  o[15] = 1;
+  return o;
+}
+
+function mat4Multiply(a, b, out) {
+  const o = out || new Float32Array(16);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      let s = 0;
+      for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+      o[c * 4 + r] = s;
+    }
+  }
+  return o;
+}
+
+function mat4Inverse(m, out) {
+  const a00 = m[0],  a01 = m[1],  a02 = m[2],  a03 = m[3];
+  const a10 = m[4],  a11 = m[5],  a12 = m[6],  a13 = m[7];
+  const a20 = m[8],  a21 = m[9],  a22 = m[10], a23 = m[11];
+  const a30 = m[12], a31 = m[13], a32 = m[14], a33 = m[15];
+
+  const b00 = a00*a11 - a01*a10;
+  const b01 = a00*a12 - a02*a10;
+  const b02 = a00*a13 - a03*a10;
+  const b03 = a01*a12 - a02*a11;
+  const b04 = a01*a13 - a03*a11;
+  const b05 = a02*a13 - a03*a12;
+  const b06 = a20*a31 - a21*a30;
+  const b07 = a20*a32 - a22*a30;
+  const b08 = a20*a33 - a23*a30;
+  const b09 = a21*a32 - a22*a31;
+  const b10 = a21*a33 - a23*a31;
+  const b11 = a22*a33 - a23*a32;
+
+  let det = b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06;
+  if (!det) throw new Error('mat4Inverse: singular matrix');
+  det = 1.0 / det;
+
+  const o = out || new Float32Array(16);
+  o[0]  = (a11*b11 - a12*b10 + a13*b09) * det;
+  o[1]  = (a02*b10 - a01*b11 - a03*b09) * det;
+  o[2]  = (a31*b05 - a32*b04 + a33*b03) * det;
+  o[3]  = (a22*b04 - a21*b05 - a23*b03) * det;
+  o[4]  = (a12*b08 - a10*b11 - a13*b07) * det;
+  o[5]  = (a00*b11 - a02*b08 + a03*b07) * det;
+  o[6]  = (a32*b02 - a30*b05 - a33*b01) * det;
+  o[7]  = (a20*b05 - a22*b02 + a23*b01) * det;
+  o[8]  = (a10*b10 - a11*b08 + a13*b06) * det;
+  o[9]  = (a01*b08 - a00*b10 - a03*b06) * det;
+  o[10] = (a30*b04 - a31*b02 + a33*b00) * det;
+  o[11] = (a21*b02 - a20*b04 - a23*b00) * det;
+  o[12] = (a11*b07 - a10*b09 - a12*b06) * det;
+  o[13] = (a00*b09 - a01*b07 + a02*b06) * det;
+  o[14] = (a31*b01 - a30*b03 - a32*b00) * det;
+  o[15] = (a20*b03 - a21*b01 + a22*b00) * det;
+  return o;
+}
+
+function norm3(v) {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+}
+
+// ---------------------------------------------------------------------------
+// Shader loading
+// ---------------------------------------------------------------------------
+
+async function loadShader(name) {
+  const url = new URL(`./shaders/${name}.wgsl`, import.meta.url);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Failed to load shader ${name}.wgsl: ${resp.status}`);
+  return resp.text();
+}
+
+// ---------------------------------------------------------------------------
+// WebGPU context
+// ---------------------------------------------------------------------------
+
+async function initContext(canvas) {
+  if (!navigator.gpu) {
+    throw new Error('WebGPU is not supported in this browser. Try Chrome 113+, Edge 113+, or Safari 17+.');
+  }
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+  if (!adapter) throw new Error('No WebGPU adapter found.');
+  const device = await adapter.requestDevice();
+  device.lost.then((info) => console.error('WebGPU device lost:', info.message));
+
+  const context = canvas.getContext('webgpu');
+  if (!context) throw new Error('Failed to acquire WebGPU canvas context.');
+  const format = navigator.gpu.getPreferredCanvasFormat();
+
+  const ctx = {
+    device, context, canvas, format,
+    depthTexture: null, depthView: null,
+    width: 0, height: 0,
+    resizeCallbacks: [],
+    onResize(cb) { this.resizeCallbacks.push(cb); },
+  };
+
+  function configure() {
+    const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.dprCap);
+    const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+    canvas.width = w;
+    canvas.height = h;
+    context.configure({ device, format, alphaMode: 'opaque' });
+    if (ctx.depthTexture) ctx.depthTexture.destroy();
+    ctx.depthTexture = device.createTexture({
+      size: { width: w, height: h },
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    ctx.depthView = ctx.depthTexture.createView();
+    ctx.width = w;
+    ctx.height = h;
+    for (const cb of ctx.resizeCallbacks) cb(w, h);
+  }
+
+  configure();
+  new ResizeObserver(configure).observe(canvas);
+  return ctx;
+}
+
+// ---------------------------------------------------------------------------
+// Camera
+// ---------------------------------------------------------------------------
+
+function createCamera(canvas) {
+  let yaw = CONFIG.camera.initialYaw;
+  let pitch = CONFIG.camera.initialPitch;
+  let distance = CONFIG.camera.initialDistance;
+  const target = [...CONFIG.camera.target];
+
+  const view = mat4Identity();
+  const proj = mat4Identity();
+  const position = new Float32Array(3);
+
+  let aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+
+  function recomputeProj() {
+    mat4Perspective((CONFIG.fovYDeg * Math.PI) / 180, aspect, CONFIG.nearPlane, CONFIG.farPlane, proj);
+  }
+  function recomputeView() {
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    position[0] = target[0] + distance * cp * sy;
+    position[1] = target[1] + distance * sp;
+    position[2] = target[2] + distance * cp * cy;
+    mat4LookAt(position, target, [0, 1, 0], view);
+  }
+  recomputeProj();
+  recomputeView();
+
+  const pointers = new Map();
+  let lastPinchDist = 0;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      lastPinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+    }
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    const prev = pointers.get(e.pointerId);
+    if (!prev) return;
+    const dx = e.clientX - prev.x;
+    const dy = e.clientY - prev.y;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.size === 1) {
+      yaw -= dx * CONFIG.camera.orbitSpeed;
+      pitch += dy * CONFIG.camera.orbitSpeed;
+      pitch = Math.max(CONFIG.camera.minPitch, Math.min(CONFIG.camera.maxPitch, pitch));
+      recomputeView();
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const delta = lastPinchDist - d;
+      distance += delta * CONFIG.camera.pinchSpeed;
+      distance = Math.max(CONFIG.camera.minDistance, Math.min(CONFIG.camera.maxDistance, distance));
+      lastPinchDist = d;
+      recomputeView();
+    }
+  });
+
+  function release(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) lastPinchDist = 0;
+  }
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerleave', release);
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    distance += e.deltaY * CONFIG.camera.zoomSpeed * distance * 0.2;
+    distance = Math.max(CONFIG.camera.minDistance, Math.min(CONFIG.camera.maxDistance, distance));
+    recomputeView();
+  }, { passive: false });
+
+  return {
+    view, proj, position,
+    setAspect(a) { aspect = a; recomputeProj(); },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Frame uniforms
+//   mat4 view, mat4 proj, mat4 viewProj, mat4 invViewProj,
+//   vec4 cameraPosTime, vec4 sunDir, vec4 sunColor, vec4 ambient, vec4 viewport
+//   = 336 bytes / 84 floats
+// ---------------------------------------------------------------------------
+
+const FRAME_FLOATS = 16 * 4 + 4 * 5;
+const FRAME_BYTES = FRAME_FLOATS * 4;
+
+function createFrameUniforms(device) {
+  const cpu = new Float32Array(FRAME_FLOATS);
+  const buffer = device.createBuffer({
+    size: FRAME_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
+  const viewProj = new Float32Array(16);
+  const invVP = new Float32Array(16);
+
+  return {
+    buffer,
+    cpu,
+    update(p) {
+      cpu.set(p.view, 0);
+      cpu.set(p.proj, 16);
+      mat4Multiply(p.proj, p.view, viewProj);
+      cpu.set(viewProj, 32);
+      mat4Inverse(viewProj, invVP);
+      cpu.set(invVP, 48);
+      cpu[64] = p.cameraPos[0];
+      cpu[65] = p.cameraPos[1];
+      cpu[66] = p.cameraPos[2];
+      cpu[67] = p.time;
+      const sd = norm3(p.sunDir);
+      cpu[68] = sd[0]; cpu[69] = sd[1]; cpu[70] = sd[2]; cpu[71] = 0;
+      cpu[72] = p.sunColor[0]; cpu[73] = p.sunColor[1]; cpu[74] = p.sunColor[2]; cpu[75] = 0;
+      cpu[76] = p.ambient[0]; cpu[77] = p.ambient[1]; cpu[78] = p.ambient[2]; cpu[79] = 0;
+      cpu[80] = p.width; cpu[81] = p.height; cpu[82] = 0; cpu[83] = 0;
+    },
+    upload(queue) {
+      queue.writeBuffer(buffer, 0, cpu.buffer, cpu.byteOffset, cpu.byteLength);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Plant authoring (CPU-side L-system, 12 floats per segment = 48 B)
+//   [0..2] base position (xyz)
+//   [3]    length
+//   [4..7] orientation quaternion (xyzw) rotating +Y -> segment direction
+//   [8]    radius
+//   [9]    depth
+//   [10..11] pad
+// ---------------------------------------------------------------------------
+
+const SEGMENT_FLOATS = 12;
+const SEGMENT_BYTES = SEGMENT_FLOATS * 4;
+
+function quatFromUp(up) {
+  const u = norm3(up);
+  const d = u[1]; // dot(Y, u)
+  if (d > 0.9999) return [0, 0, 0, 1];
+  if (d < -0.9999) return [1, 0, 0, 0];
+  // axis = cross(Y, u) = (u.z, 0, -u.x)
+  const ax = u[2];
+  const ay = 0;
+  const az = -u[0];
+  const s = Math.sqrt((1 + d) * 2);
+  const inv = 1 / s;
+  return [ax * inv, ay * inv, az * inv, s * 0.5];
+}
+
+function rotateAroundAxis(dir, twist, tilt) {
+  const d = norm3(dir);
+  const ref = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+  // right = normalize(cross(ref, d))
+  let rx = ref[1] * d[2] - ref[2] * d[1];
+  let ry = ref[2] * d[0] - ref[0] * d[2];
+  let rz = ref[0] * d[1] - ref[1] * d[0];
+  const rl = Math.hypot(rx, ry, rz) || 1;
+  rx /= rl; ry /= rl; rz /= rl;
+  // fwd = cross(d, right)
+  const fx = d[1] * rz - d[2] * ry;
+  const fy = d[2] * rx - d[0] * rz;
+  const fz = d[0] * ry - d[1] * rx;
+  const cosT = Math.cos(tilt);
+  const sinT = Math.sin(tilt);
+  const cw = Math.cos(twist);
+  const sw = Math.sin(twist);
+  const x = cosT * d[0] + sinT * (cw * rx + sw * fx);
+  const y = cosT * d[1] + sinT * (cw * ry + sw * fy);
+  const z = cosT * d[2] + sinT * (cw * rz + sw * fz);
+  return norm3([x, y, z]);
+}
+
+function mulberry32(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+  };
+}
+
+function authorPlant() {
+  const segments = [];
+  const rand = mulberry32(0xC0FFEE);
+
+  function grow(pos, dir, length, radius, depth) {
+    if (depth > 5 || radius < 0.012) return;
+    const q = quatFromUp(dir);
+    segments.push(
+      pos[0], pos[1], pos[2], length,
+      q[0], q[1], q[2], q[3],
+      radius, depth, 0, 0,
+    );
+    const tip = [
+      pos[0] + dir[0] * length,
+      pos[1] + dir[1] * length,
+      pos[2] + dir[2] * length,
+    ];
+    const continueChild = depth < 5;
+    const branchOut = depth >= 1 && depth <= 4;
+    const extra = branchOut ? (rand() < 0.7 ? 2 : 1) : 0;
+    const childCount = (continueChild ? 1 : 0) + extra;
+    if (childCount === 0) return;
+
+    const baseAngle = rand() * Math.PI * 2;
+    for (let i = 0; i < childCount; i++) {
+      const around = baseAngle + i * 2.39996;
+      const isContinuation = i === 0 && continueChild;
+      const tilt = isContinuation ? (rand() - 0.5) * 0.2 : 0.55 + rand() * 0.25;
+      let newDir = rotateAroundAxis(dir, around, tilt);
+      // Phototropism: slight bias toward +Y.
+      newDir = norm3([
+        newDir[0] * 0.9,
+        newDir[1] * 0.9 + 0.1,
+        newDir[2] * 0.9,
+      ]);
+      const lenScale = isContinuation ? 0.85 : 0.7;
+      const radScale = isContinuation ? 0.78 : 0.6;
+      grow(tip, newDir, length * lenScale * (0.9 + rand() * 0.2), radius * radScale, depth + 1);
+    }
+  }
+
+  grow([0, 0, 0], [0, 1, 0], 1.1, 0.16, 0);
+  return new Float32Array(segments);
+}
+
+// ---------------------------------------------------------------------------
+// Renderers
+// ---------------------------------------------------------------------------
+
+const VERTS_PER_CYLINDER = 48;
+
+function createBranchRenderer(ctx, frame, shaderCode, segments) {
+  const { device, format } = ctx;
+
+  const buf = device.createBuffer({
+    size: Math.max(SEGMENT_BYTES, segments.byteLength),
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true,
+  });
+  new Float32Array(buf.getMappedRange()).set(segments);
+  buf.unmap();
+  const instanceCount = segments.length / SEGMENT_FLOATS;
+
+  const module = device.createShaderModule({ code: shaderCode, label: 'branch.wgsl' });
+  const bgl = device.createBindGroupLayout({
+    entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }],
+  });
+  const pipeline = device.createRenderPipeline({
+    label: 'branches',
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+    vertex: {
+      module, entryPoint: 'vs',
+      buffers: [{
+        arrayStride: SEGMENT_BYTES,
+        stepMode: 'instance',
+        attributes: [
+          { shaderLocation: 0, offset: 0,  format: 'float32x4' },
+          { shaderLocation: 1, offset: 16, format: 'float32x4' },
+          { shaderLocation: 2, offset: 32, format: 'float32x4' },
+        ],
+      }],
+    },
+    fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+    depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less' },
+  });
+  const bindGroup = device.createBindGroup({
+    layout: bgl,
+    entries: [{ binding: 0, resource: { buffer: frame.buffer } }],
+  });
+
+  return {
+    draw(pass) {
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.setVertexBuffer(0, buf);
+      pass.draw(VERTS_PER_CYLINDER, instanceCount, 0, 0);
+    },
+  };
+}
+
+function createFullscreenRenderer(ctx, frame, shaderCode, label, opts) {
+  const { device, format } = ctx;
+  const module = device.createShaderModule({ code: shaderCode, label });
+  const bgl = device.createBindGroupLayout({
+    entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }],
+  });
+  const pipeline = device.createRenderPipeline({
+    label,
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+    vertex: { module, entryPoint: 'vs' },
+    fragment: { module, entryPoint: 'fs', targets: [{ format }] },
+    primitive: { topology: 'triangle-list', cullMode: opts.cull },
+    depthStencil: {
+      format: 'depth24plus',
+      depthWriteEnabled: opts.depthWrite,
+      depthCompare: opts.depthCompare,
+    },
+  });
+  const bindGroup = device.createBindGroup({
+    layout: bgl,
+    entries: [{ binding: 0, resource: { buffer: frame.buffer } }],
+  });
+  return {
+    draw(pass) {
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.draw(opts.vertexCount, 1, 0, 0);
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const canvas = document.getElementById('c');
+  const fpsEl = document.getElementById('fps');
+  const errEl = document.getElementById('err');
+  const errInner = errEl.querySelector('.inner');
+
+  try {
+    const [branchCode, skyCode, groundCode] = await Promise.all([
+      loadShader('branch'),
+      loadShader('sky'),
+      loadShader('ground'),
+    ]);
+
+    const ctx = await initContext(canvas);
+    const camera = createCamera(canvas);
+    camera.setAspect(ctx.width / Math.max(1, ctx.height));
+    ctx.onResize((w, h) => camera.setAspect(w / Math.max(1, h)));
+
+    const frame = createFrameUniforms(ctx.device);
+
+    const segments = authorPlant();
+    console.log(`Authored plant: ${segments.length / SEGMENT_FLOATS} segments`);
+
+    const branches = createBranchRenderer(ctx, frame, branchCode, segments);
+    const sky = createFullscreenRenderer(ctx, frame, skyCode, 'sky', {
+      vertexCount: 3, cull: 'none', depthWrite: false, depthCompare: 'less-equal',
+    });
+    const ground = createFullscreenRenderer(ctx, frame, groundCode, 'ground', {
+      vertexCount: 6, cull: 'none', depthWrite: true, depthCompare: 'less',
+    });
+
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let fpsAccum = 0;
+    let fpsTimer = 0;
+
+    function loop(now) {
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+      frameCount++;
+      fpsAccum += dt;
+      fpsTimer += dt;
+      if (fpsTimer >= 0.5) {
+        fpsEl.textContent = (frameCount / fpsAccum).toFixed(0);
+        frameCount = 0;
+        fpsAccum = 0;
+        fpsTimer = 0;
+      }
+
+      frame.update({
+        view: camera.view,
+        proj: camera.proj,
+        cameraPos: camera.position,
+        time: now / 1000,
+        sunDir: CONFIG.sun.direction,
+        sunColor: CONFIG.sun.color,
+        ambient: CONFIG.sun.ambient,
+        width: ctx.width,
+        height: ctx.height,
+      });
+      frame.upload(ctx.device.queue);
+
+      const view = ctx.context.getCurrentTexture().createView();
+      const encoder = ctx.device.createCommandEncoder();
+      const pass = encoder.beginRenderPass({
+        colorAttachments: [{
+          view,
+          clearValue: { r: 0.05, g: 0.08, b: 0.06, a: 1 },
+          loadOp: 'clear',
+          storeOp: 'store',
+        }],
+        depthStencilAttachment: {
+          view: ctx.depthView,
+          depthClearValue: 1.0,
+          depthLoadOp: 'clear',
+          depthStoreOp: 'store',
+        },
+      });
+      sky.draw(pass);
+      ground.draw(pass);
+      branches.draw(pass);
+      pass.end();
+      ctx.device.queue.submit([encoder.finish()]);
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    errEl.style.display = 'flex';
+    errInner.innerHTML = `WebGPU initialization failed.<code>${escapeHtml(msg)}</code>`;
+    console.error(e);
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
+
+main();
