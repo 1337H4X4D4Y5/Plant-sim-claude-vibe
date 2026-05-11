@@ -6,7 +6,34 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_Waiting on the v0.2.2 debug dump from the user to diagnose the growth issue, then on to v0.3._
+_Waiting on the v0.2.3 kernel-probe readout from the user. The four atomic counters will pinpoint where the growth dispatch is failing._
+
+## v0.2.3 — Kernel probe counters (2026-05-11)
+
+### Reason
+v0.2.2 debug dump showed `simTick: 11`, `segs: 1`, and `errors: (none)` on iPhone 15 Pro Max — so the CPU sim scheduler is firing but no GPU thread is reaching `atomicAdd` on the segment counter. This build splits that one counter into four so we can tell whether the dispatch even ran, whether the seed read back correctly, and whether the uniform buffer is being delivered to the kernel.
+
+### Added
+- **`Counters` storage struct** (16 B) replaces the bare `atomic<u32>` binding:
+  - `next` — same as before, atomic append index for new segments.
+  - `dispatched` — thread 0 unconditionally bumps this. If it stays 0 the compute pipeline isn't dispatching at all.
+  - `liveTips` — bumped after the alive+tip+age gate passes. If `dispatched` grows but this stays 0, the seed's flags are being read as something other than `TIP | ALIVE`.
+  - `maxIdx` — `atomicMax` of the observed `sim.tick`. If this stays 0 while CPU `simTick` climbs, the sim-params uniform isn't actually reaching the kernel.
+- HUD gets a third row: `disp · live`. The Copy debug dump labels each counter inline so the readout is self-describing.
+
+### How to read v0.2.3
+After ~10 seconds of running, ideal readout would be:
+- `simTick: 11` (CPU side)
+- `dispatched: 11` (kernel ran every tick)
+- `liveTips: ~10+` (seeds and growing tips made it through the gate)
+- `next: > 1` (segments getting appended)
+
+The diagnostic decision tree:
+- `dispatched == 0` → compute pipeline isn't dispatching. Bind-group or pipeline-creation issue.
+- `dispatched > 0, maxIdx == 0` → uniform buffer not landing in the kernel.
+- `dispatched > 0, liveTips == 0` → seed's `flags` field isn't being read as 3 (storage-buffer layout mismatch).
+- `liveTips > 0, next == 1` → kernel passes the gate but never reaches `atomicAdd(&counters.next, ...)`. Probably the maxDepth check failing.
+- All four grow → kernel works, render path is the culprit.
 
 ## v0.2.2 — Copyable debug + non-overlapping HUD (2026-05-11)
 

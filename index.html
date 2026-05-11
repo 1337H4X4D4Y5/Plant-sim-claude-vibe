@@ -232,6 +232,12 @@
         desc: 'v0.2.1 + repositioned/widened HUD (no longer overlapped by the help text) + Copy debug button that grabs version, adapter info, features, limits, fps, sim state, and error log to the clipboard.',
       },
       {
+        id: 'v0.2.3',
+        title: 'GPU growth (kernel probes)',
+        status: 'shipped',
+        desc: 'v0.2.2 + three extra atomic probes in the growth kernel: `dispatched` (thread-0 bumps every dispatch), `liveTips` (threads past the alive+tip+age gate), `maxIdx` (max sim.tick seen). Tells us whether compute is even running, and if so where threads exit.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
