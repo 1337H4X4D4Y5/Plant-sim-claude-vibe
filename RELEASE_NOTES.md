@@ -8,6 +8,19 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 _v0.2 (GPU growth) is next. See `TODO.md`._
 
+## v0.1.1 — Camera traversal (2026-05-11)
+
+### Added
+- **Pan**: drag the focal point along the view plane.
+  - Touch: two-finger drag (pinch is now composable with pan — both gestures apply simultaneously).
+  - Desktop: right-drag, middle-drag, or `Shift`+left-drag.
+  - Math: world translation per pixel is `2 · distance · tan(fovY/2) / canvasHeightPx`, applied along the view matrix's first two rows so the drag tracks the cursor in the focal plane.
+- **WASD keyboard traversal**: W/S move forward/back along the camera's ground-projected forward axis; A/D strafe along the right axis; Q/E lower/raise the focal point. Speed scales with current zoom distance so it feels right whether you're zoomed in on one branch or pulled back over the field.
+- Right-click context menu suppressed on the canvas.
+
+### Notes
+- Pan/zoom on touch are now combined into a single two-finger gesture. The centroid delta drives pan; the spread delta drives zoom. This matches Maps-style feel.
+
 ## v0.1 — Hello plant (2026-05-11)
 
 ### Added

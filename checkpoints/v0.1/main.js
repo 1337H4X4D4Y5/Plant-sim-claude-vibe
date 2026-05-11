@@ -234,44 +234,83 @@ function createCamera(canvas) {
   recomputeProj();
   recomputeView();
 
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function orbit(dx, dy) {
+    yaw -= dx * CONFIG.camera.orbitSpeed;
+    pitch += dy * CONFIG.camera.orbitSpeed;
+    pitch = clamp(pitch, CONFIG.camera.minPitch, CONFIG.camera.maxPitch);
+    recomputeView();
+  }
+
+  function pan(dx, dy) {
+    // dx,dy in CSS pixels. Scale so a dragged point in the focal plane follows the cursor.
+    const canvasH = Math.max(1, canvas.clientHeight);
+    const worldPerPx = (2 * distance * Math.tan((CONFIG.fovYDeg * Math.PI / 180) / 2)) / canvasH;
+    // Camera-right axis in world = first row of view = (view[0], view[4], view[8]).
+    // Camera-up axis in world  = second row = (view[1], view[5], view[9]).
+    target[0] += (-dx * view[0] + dy * view[1]) * worldPerPx;
+    target[1] += (-dx * view[4] + dy * view[5]) * worldPerPx;
+    target[2] += (-dx * view[8] + dy * view[9]) * worldPerPx;
+    recomputeView();
+  }
+
+  function zoomBy(amt) {
+    distance = clamp(distance + amt, CONFIG.camera.minDistance, CONFIG.camera.maxDistance);
+    recomputeView();
+  }
+
+  // ---- Pointer (mouse + touch) ----
   const pointers = new Map();
-  let lastPinchDist = 0;
+  let twoFinger = null;
+  let shiftHeld = false;
+
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   canvas.addEventListener('pointerdown', (e) => {
     canvas.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const wantsPan = e.button === 1 || e.button === 2 || shiftHeld;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, mode: wantsPan ? 'pan' : 'orbit' });
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
-      lastPinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+      twoFinger = {
+        cx: (a.x + b.x) / 2,
+        cy: (a.y + b.y) / 2,
+        dist: Math.hypot(a.x - b.x, a.y - b.y),
+      };
     }
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    const prev = pointers.get(e.pointerId);
-    if (!prev) return;
-    const dx = e.clientX - prev.x;
-    const dy = e.clientY - prev.y;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = pointers.get(e.pointerId);
+    if (!p) return;
+    const dx = e.clientX - p.x;
+    const dy = e.clientY - p.y;
+    p.x = e.clientX;
+    p.y = e.clientY;
 
     if (pointers.size === 1) {
-      yaw -= dx * CONFIG.camera.orbitSpeed;
-      pitch += dy * CONFIG.camera.orbitSpeed;
-      pitch = Math.max(CONFIG.camera.minPitch, Math.min(CONFIG.camera.maxPitch, pitch));
-      recomputeView();
-    } else if (pointers.size === 2) {
+      if (p.mode === 'pan') pan(dx, dy);
+      else orbit(dx, dy);
+    } else if (pointers.size === 2 && twoFinger) {
       const [a, b] = [...pointers.values()];
+      const cx = (a.x + b.x) / 2;
+      const cy = (a.y + b.y) / 2;
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      const delta = lastPinchDist - d;
-      distance += delta * CONFIG.camera.pinchSpeed;
-      distance = Math.max(CONFIG.camera.minDistance, Math.min(CONFIG.camera.maxDistance, distance));
-      lastPinchDist = d;
-      recomputeView();
+      const dcx = cx - twoFinger.cx;
+      const dcy = cy - twoFinger.cy;
+      const ddist = twoFinger.dist - d;
+      if (dcx !== 0 || dcy !== 0) pan(dcx, dcy);
+      if (ddist !== 0) zoomBy(ddist * CONFIG.camera.pinchSpeed * distance * 0.1);
+      twoFinger.cx = cx;
+      twoFinger.cy = cy;
+      twoFinger.dist = d;
     }
   });
 
   function release(e) {
     pointers.delete(e.pointerId);
-    if (pointers.size < 2) lastPinchDist = 0;
+    if (pointers.size < 2) twoFinger = null;
   }
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
@@ -279,14 +318,47 @@ function createCamera(canvas) {
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
-    distance += e.deltaY * CONFIG.camera.zoomSpeed * distance * 0.2;
-    distance = Math.max(CONFIG.camera.minDistance, Math.min(CONFIG.camera.maxDistance, distance));
-    recomputeView();
+    zoomBy(e.deltaY * CONFIG.camera.zoomSpeed * distance * 0.2);
   }, { passive: false });
+
+  // ---- Keyboard (WASD + QE + shift modifier) ----
+  const keys = new Set();
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Shift') shiftHeld = true;
+    keys.add(e.key.toLowerCase());
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Shift') shiftHeld = false;
+    keys.delete(e.key.toLowerCase());
+  });
+
+  function update(dt) {
+    let dxIn = 0, dzIn = 0, dyIn = 0;
+    if (keys.has('w')) dzIn += 1;
+    if (keys.has('s')) dzIn -= 1;
+    if (keys.has('a')) dxIn -= 1;
+    if (keys.has('d')) dxIn += 1;
+    if (keys.has('q')) dyIn -= 1;
+    if (keys.has('e')) dyIn += 1;
+    if (dxIn === 0 && dzIn === 0 && dyIn === 0) return;
+    const speed = Math.max(2, distance * 0.8);
+    // World-space right axis = (view[0], view[4], view[8]).
+    // Camera "forward toward target" in world = -(view[2], view[6], view[10]).
+    const rx = view[0], ry = view[4], rz = view[8];
+    let fx = -view[2], fy = -view[6], fz = -view[10];
+    // Flatten forward onto XZ so traversal stays ground-locked.
+    const flen = Math.hypot(fx, 0, fz) || 1;
+    fx /= flen; fz /= flen; fy = 0;
+    target[0] += (dxIn * rx + dzIn * fx) * speed * dt;
+    target[1] += dyIn * speed * dt;
+    target[2] += (dxIn * rz + dzIn * fz) * speed * dt;
+    recomputeView();
+  }
 
   return {
     view, proj, position,
     setAspect(a) { aspect = a; recomputeProj(); },
+    update,
   };
 }
 
@@ -582,6 +654,7 @@ async function main() {
         fpsTimer = 0;
       }
 
+      camera.update(dt);
       frame.update({
         view: camera.view,
         proj: camera.proj,
