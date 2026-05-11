@@ -6,7 +6,20 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.0 ships many plants on a grid with a shared genome. Next: per-plant genomes (v0.3.1), then GPU frustum cull + LOD (v0.3.2+)._
+_v0.3.1 gives every plant its own genome. Next chunk of M3: GPU frustum culling + indirect draws (v0.3.2), then LOD buckets + impostors (v0.3.3)._
+
+## v0.3.1 — Per-plant genomes (2026-05-11)
+
+### Changed
+- **`genomeBuffer` is now a storage buffer of `array<Genome>`** sized to `maxPlants * 32 B`. Bind type changes from `uniform` to `read-only-storage` in both the growth-compute and leaf-render bind groups.
+- **`growth.wgsl`** reads `let g = genomes[plantIdx];` and uses `g.branchAngle`, `g.branchProb`, `g.maxDepth`, `g.growthBias` for its decisions. Each plant now branches and terminates by its own rules.
+- **`leaf.wgsl`** gains a 4th binding for `SimParams` so it can compute `plantIdx = segIdx / sim.segsPerPlant`, then reads `g.leafShape` per plant. Each plant shows its own species silhouette + colour.
+- **`makeGenome(seedBase, plantIdx)`** generates per-plant random values: branchAngle 0.40–0.80 rad, branchProb 0.55–0.90, lenScale 0.80–0.90, radScale 0.72–0.82, maxDepth 5–7, growthBias 0.40–1.40, leafShape one of {oval, round, lance, lobed, heart}. CPU keeps a mirror in `sim.cpuGenomes` so the leaf-cycle button can rebuild the buffer.
+- **Leaf-shape cycle button** now has 6 states: `varied` (each plant uses its own genome.leafShape) and the 5 named overrides (`oval`, `round`, `lance`, `lobed`, `heart`) that rewrite every plant's slot to the same shape — useful for picking one species out of the field.
+
+### Notes
+- Branches still all look the same colour because trunk colour is hardcoded in `branch.wgsl`. Per-genome bark colour is a v0.5 (fidelity) item.
+- The growing rules now genuinely diverge between plants, so the field will show some short bushy plants next to tall slender ones once growth converges (~10 sim ticks).
 
 ## v0.3.0 — Many plants on a grid (2026-05-11)
 

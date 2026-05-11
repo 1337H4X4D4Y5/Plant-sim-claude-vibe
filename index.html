@@ -280,6 +280,12 @@
         desc: 'M3 part 1. 64 plants on an 8×8 jittered grid, each with pre-reserved segment slots and its own atomic next-free counter inside the growth kernel. Same genome shared by all plants for now (per-plant genomes land in v0.3.1).',
       },
       {
+        id: 'v0.3.1',
+        title: 'Per-plant genomes',
+        status: 'shipped',
+        desc: 'Genome promoted from a 32 B uniform to a `array<Genome>` storage buffer; each plant gets its own random branching angle, branch probability, max depth, growth bias, and leaf shape. Growth and leaf shaders index by `plantIdx = segIdx / segsPerPlant`. Leaf-shape button gains a "varied" state that respects per-plant genomes, plus 5 override states that force the whole field to one species.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
