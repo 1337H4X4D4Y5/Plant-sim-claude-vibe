@@ -6,7 +6,19 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.5 plants the first evolution loop. v0.4 will replace the CPU fitness proxy with a real top-down light-grid fitness, run mutation/selection entirely on the GPU, and let lineages emerge naturally._
+_v0.3.6 adds atmospheric variation. Next plausible step: shadows (single sun shadow map) or v0.4 GPU light grid + fitness._
+
+## v0.3.6 — Day-night cycle (2026-05-11)
+
+### Added
+- **`computeSky(t)`** on CPU. The sun traces a tilted east-west arc with a slight north-south wobble, dipping below the horizon for night. Cycle is 90 s long. Returns `sunDir`, `sunColor` (warmer at low elevation, brighter at zenith, zero below horizon), and `ambient` (cooler/dim at night, warmer/bright at day).
+- The render loop calls `computeSky(now/1000)` every frame and feeds the result into the existing frame uniform — no new bindings or buffers.
+- **Sky shader rewrite.** Three palette presets (night / sunset / day) interpolated by sun elevation using `smoothstep` weights, plus a warm low-sun bloom around `dot(viewDir, sunDir)` that fades out as the sun climbs. Sun disc + glow fade with the elevation factor so they disappear cleanly at night.
+- Below-horizon ground tint follows the time of day so the unseen "below" is brighter during the day.
+
+### Notes
+- Branches, leaves, ground all consume `sunColor` and `ambient` from the frame uniform, so they already lit themselves correctly — no shader changes there.
+- Day length is hardcoded at 90 s; lift to a config knob if it should be configurable.
 
 ## v0.3.5 — CPU-driven evolution (2026-05-11)
 

@@ -310,6 +310,12 @@
         desc: 'After tick 20 the system starts retiring mature plants and replanting their slots with mutated copies of "fit" parents (fitness = tallness + depth + uprightness, a crude proxy until v0.4\'s light grid). Mutations jitter each gene by a small amount; leaf shape rarely jumps. New plant lands near its parent. HUD shows `births` counter.',
       },
       {
+        id: 'v0.3.6',
+        title: 'Day-night cycle',
+        status: 'shipped',
+        desc: '90-second day-night cycle. Sun arcs east → zenith → west then dips below the horizon. CPU computes `sunDir`, `sunColor`, `ambient` per frame; sky shader picks between three palettes (night / sunset / day) by sun elevation and adds a warm low-sun bloom around the sun direction. No new bindings, no compute kernels.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
