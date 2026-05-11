@@ -316,6 +316,12 @@
         desc: '90-second day-night cycle. Sun arcs east → zenith → west then dips below the horizon. CPU computes `sunDir`, `sunColor`, `ambient` per frame; sky shader picks between three palettes (night / sunset / day) by sun elevation and adds a warm low-sun bloom around the sun direction. No new bindings, no compute kernels.',
       },
       {
+        id: 'v0.3.7',
+        title: 'Canopy light grid',
+        status: 'shipped',
+        desc: 'New 256×256 top-down atomic-u32 light grid. Two compute kernels (`clear`, `splat`) every frame; each alive non-trunk segment increments the cell its tip lands in, weighted by depth. Ground shader 3×3-samples the grid and darkens under canopies. Foundation for v0.4 GPU evolution: this same buffer becomes the fitness signal.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

@@ -6,7 +6,27 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.6 adds atmospheric variation. Next plausible step: shadows (single sun shadow map) or v0.4 GPU light grid + fitness._
+_v0.3.7 lays the foundation for real GPU evolution. Next: read the light grid back into per-plant fitness scores (replacing the CPU proxy) — that's v0.4._
+
+## v0.3.7 — Canopy light grid (2026-05-11)
+
+The first piece of the M4 infrastructure: a top-down splat grid that records where every canopy segment's tip lives in world space. Ground darkens under it now; in v0.4 it will also tell each plant how much sun it's getting.
+
+### Added
+- **`light.wgsl`** with two compute entry points:
+  - `clear` — one thread per cell zeroes the grid (256 cells per workgroup × 1024 workgroups).
+  - `splat` — one thread per segment slot. If the segment is alive and `depth ≥ 2`, it projects its tip XZ into the grid and `atomicAdd`s a depth-weighted count into that cell.
+- **256×256 `atomic<u32>` storage buffer** `lightGridBuffer` (256 KB). `STORAGE | COPY_DST`.
+- **`createLightPipelines(device, module, grid, segments, simBuffer)`** builds both compute pipelines off a shared bind-group layout.
+- **`createGroundRenderer`** (replaces the generic `createFullscreenRenderer` for ground) — adds a `read-only-storage` binding for the grid.
+- **`ground.wgsl` `canopyShadow(worldPos)`** does a 3×3 smoothing read off the grid and folds it directly into the sun-lambert term, so canopy shadows ride along with the day-night sun colour.
+
+### Per-frame order
+Inside one command encoder: `growth` (if sim tick fires) → `light.clear` → `light.splat` → render. WebGPU handles inter-pass sync automatically.
+
+### Notes
+- Grid covers world XZ ∈ [-40, +40] at 256 cells = 31.25 cm per cell. Fits the 16×16 plant field plus the new-plant jitter from v0.3.5.
+- Depth weighting (1..8) so canopy tips contribute much more than mid-trunks. Roll your eyes back if the shadow looks too dark — first lever is the `0.06` coefficient in `canopyShadow`.
 
 ## v0.3.6 — Day-night cycle (2026-05-11)
 
