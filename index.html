@@ -292,6 +292,12 @@
         desc: 'Three fixes for the "all plants look the same" problem: growth kernel now actually uses g.lenScale & g.radScale (was hardcoded); seed length and trunk thickness are per-plant; phototropism is 2.5× stronger and growthBias goes negative for droopy plants. Genome ranges widened across the board — bushes next to skyscraper trees, plus a few willow-droopers.',
       },
       {
+        id: 'v0.3.3',
+        title: '256-plant field',
+        status: 'shipped',
+        desc: '4× more plants (16×16 grid = 256), tighter grid spacing, camera defaults pulled back and pitched up, far plane bumped to 350m. ~32k segments, ~2M vertex invocations per frame — well within iPhone 15 Pro Max budget. No culling yet (every plant always drawn); v0.3.4 adds GPU frustum cull when needed.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

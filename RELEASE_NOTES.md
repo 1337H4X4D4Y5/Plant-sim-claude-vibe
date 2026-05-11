@@ -6,7 +6,22 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.2 ships much wider per-plant variation. Next chunk of M3: GPU frustum culling + indirect draws (v0.3.3), then LOD buckets + impostors (v0.3.4)._
+_v0.3.3 scales to 256 plants. v0.3.4 will add GPU frustum culling + indirect draws so the per-frame cost stops scaling with `maxSegs`._
+
+## v0.3.3 — 256-plant field (2026-05-11)
+
+Scale up the field to actually feel like a forest.
+
+### Changed
+- `CONFIG.sim.maxPlants: 64 → 256` (16×16 grid).
+- `gridSpacing: 4.0 → 3.5`, `gridJitter: 1.1 → 1.2` to keep the field a manageable ~56 m wide while filling in densely.
+- Camera defaults: `initialDistance: 24 → 55`, `initialPitch: 0.35 → 0.45`, `target.y: 2.0 → 2.5`, `maxDistance: 120 → 220`.
+- `CONFIG.farPlane: 200 → 350` so the back of the field doesn't clip when zoomed out.
+
+### Notes
+- Segments: 256 × 128 = 32,768. Counter buffer: 16 B header + 1024 B per-plant atomics. Genomes: 256 × 32 = 8 KB.
+- Per-frame vertex invocations: branches ~1.57 M, leaves ~590 K. Empty slots still run their VS (early-out before any matrix math), but skip rasterisation.
+- No frustum culling yet: every plant is drawn regardless of camera. Visible at this scale is fine; when we hit 500+ plants we'll add GPU cull + indirect draws.
 
 ## v0.3.2 — Wider per-plant variation (2026-05-11)
 
