@@ -322,6 +322,12 @@
         desc: 'New 256×256 top-down atomic-u32 light grid. Two compute kernels (`clear`, `splat`) every frame; each alive non-trunk segment increments the cell its tip lands in, weighted by depth. Ground shader 3×3-samples the grid and darkens under canopies. Foundation for v0.4 GPU evolution: this same buffer becomes the fitness signal.',
       },
       {
+        id: 'v0.3.8',
+        title: 'Sim speed slider',
+        status: 'shipped',
+        desc: '0× → 10× speed slider in the HUD. Scales the dt that drives the sim-tick accumulator, the evolution loop, and the day-night cycle — sun moves faster, plants grow faster, generations turn over faster. 0 pauses the sim cleanly while rendering keeps running at 60 fps.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

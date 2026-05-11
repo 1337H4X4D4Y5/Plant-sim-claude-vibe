@@ -6,7 +6,19 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.3.7 lays the foundation for real GPU evolution. Next: read the light grid back into per-plant fitness scores (replacing the CPU proxy) — that's v0.4._
+_v0.3.8 adds the user-requested speed slider. v0.4 next: read the light grid back into per-plant fitness scores so evolution actually selects for sun-catching plants._
+
+## v0.3.8 — Sim speed slider (2026-05-11)
+
+### Added
+- **HUD speed slider** (0×–10× in 0.5 steps). Lives below the counter rows and above the leaf-shape / Copy-debug buttons. Touch-friendly thumb sized for fingertip use; label to the right shows `paused` at 0× or `N.N×` otherwise.
+- **`timeScale` plumbed through the sim clocks.** A new `simTime` accumulator advances by `dt * timeScale` each frame, feeding `computeSky(simTime)` — so the sun arc speeds up alongside growth. The sim-tick accumulator also multiplies dt by `timeScale`, clamped to a 4-tick backlog so dragging the slider to 10× doesn't queue 80 ticks of catch-up work.
+- **Pausing** (slider at 0) cleanly disables the sim-tick accumulator AND the day cycle while leaving rendering at 60 fps. Camera input, debug HUD, and counter readback all continue normally.
+- `timeScale` shows up in the Copy-debug dump.
+
+### Notes
+- At max speed (10×), with simHz=2, you get roughly one tick every 3 frames at 60 fps — about 20 sim ticks per real-time second. Evolution `births` should climb visibly.
+- Slider only scales the *sim* dt; wind animation in the branch/leaf vertex shaders still uses real `frame.cameraPosTime.w`, so wind doesn't go double-time. Easy to change if it should.
 
 ## v0.3.7 — Canopy light grid (2026-05-11)
 
