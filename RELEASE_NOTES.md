@@ -6,7 +6,40 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.10 fixes the "floating leaves" look — twigs now have a per-type minimum radius and leaves scale to twig thickness. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+_v0.4.11 tightens typeBounds further (tree max ~5.7 m vs 7.7 m before) and adds long-running ecosystem tests (12 800 plant-lifecycles per run). Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+
+## v0.4.11 — Smaller plants + long-sim ecosystem test (2026-05-12)
+
+User reported plants still growing far too big and asked for unit tests "that operate over long simulation times". Two fixes.
+
+### Fix: tighter typeBounds, smaller plants
+
+The v0.4.9 bounds gave tree a 7.7 m mathematical max — on a 16 m × 16 m field this reads as a single skyscraper dominating the scene. v0.4.11 trims every type:
+
+| Type   | Field      | v0.4.10 → v0.4.11      | New math max |
+|--------|------------|------------------------|--------------|
+| tree   | lenScale   | 0.72…0.85 → 0.72…0.82  |              |
+| tree   | maxDepth   | 5…7 → 5…6              |              |
+| tree   | seedLength | 0.50…1.20 → 0.50…1.10  | 5.74 m       |
+| bush   | lenScale   | 0.50…0.68 → 0.50…0.62  |              |
+| bush   | maxDepth   | 4…6 → 4…5              |              |
+| bush   | seedLength | 0.20…0.55 → 0.18…0.45  | 1.27 m       |
+| grass  | lenScale   | 0.55…0.72 → 0.55…0.68  |              |
+| grass  | maxDepth   | 3…5 → 3…4              |              |
+| grass  | seedLength | 0.08…0.22 → 0.08…0.18  | 0.55 m       |
+| flower | lenScale   | 0.50…0.68 → 0.48…0.62  |              |
+| flower | seedLength | 0.12…0.32 → 0.12…0.28  | 0.75 m       |
+
+Runtime height cap in `growth.wgsl` lowered 12 m → 8 m. Per-child length clamp 2.5 m → 1.5 m. Render-side `lenBad` cap 4 m → 2 m, `posBad` y-abs 20 m → 10 m. Defense in depth.
+
+### Fix: long-running ecosystem unit tests
+
+The old tests checked single plants and short mutation chains. They didn't capture what the live sim actually does: 256 plants growing in parallel, dying, dropping mutated seeds, getting replaced by their children over thousands of life cycles. Two new tests:
+
+- **`long-running ecosystem: 256 plants × 50 life cycles`** — 12 800 plant-lifecycles total. Each lifecycle: simulate the plant to full depth, replace it with a mutated child (30 % chance of cross-pollination from a random parent). Asserts no plant ever exceeds its ceiling. Tallest observed: 5.03 m tree.
+- **`long-running stress: 100 plants × 100 generations with upward-biased jitter`** — every plant starts at the upper bound of its type's genome, and `Math.random` is replaced with a `sqrt`-biased version that pushes mutations upward. This simulates pathological selection pressure that always favors bigger plants. Asserts the ceiling still holds. Tallest observed: 5.21 m tree.
+
+Together: 9 tests, all passing.
 
 ## v0.4.10 — Thicker twigs, leaves scale to twig (2026-05-12)
 

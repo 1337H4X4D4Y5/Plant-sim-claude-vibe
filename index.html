@@ -400,6 +400,12 @@
         desc: 'Fixes "leaves look like they\'re floating" — a fixed 8.5 cm leaf hung off a 5 mm twig (26× ratio) reads as disconnected. Three changes: (1) per-type minimum twig radius in growth.wgsl (tree 12 mm, bush 9 mm, flower 8 mm, grass 3 mm) so leaf-bearing terminal twigs are visually substantial; (2) per-segment taper softened from 0.88 → 0.94 so twigs don\'t pinch to a needle right where the leaf attaches; (3) leaf size in leaf.wgsl now scales with the supporting twig\'s radius (radius × 8, clamped 4–16 cm, ±15 % jitter) so a thin twig gets a small leaf and a thick twig gets a big leaf.',
       },
       {
+        id: 'v0.4.11',
+        title: 'Smaller plants + long-sim test',
+        status: 'shipped',
+        desc: 'Plants still felt too big on the 16 m × 16 m field. v0.4.11 tightens every type\'s bounds further: tree max 5.7 m (was 7.7), bush 1.3 m, grass 0.55 m, flower 0.75 m. Runtime height cap in growth.wgsl lowered 12 m → 8 m and per-child length clamp 2.5 m → 1.5 m. New unit tests run a 50-generation × 256-plant ecosystem simulation (12 800 plant-lifecycles) with mutation between generations, plus a biased-jitter stress test where every plant starts at its upper-bound genome and selection pressure is artificially pushed upward. The long-sim test\'s tallest plant across all 12 800 lifecycles was 5.03 m, well under the 6.0 m tree ceiling. All 9 tests pass.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

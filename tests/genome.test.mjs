@@ -1,6 +1,6 @@
 // Regression test: no plant — initial spawn or mutated descendant — should
 // be able to grow to an absurd height for its species. Mirrors the genome
-// logic in /checkpoints/v0.4.9/main.js. Run with:
+// logic in /checkpoints/v0.4.11/main.js. Run with:
 //
 //     node --test tests/
 //
@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 // ---------------------------------------------------------------------------
-// Mirror of main.js as of v0.4.9
+// Mirror of main.js as of v0.4.11
 // ---------------------------------------------------------------------------
 
 const PLANT_TYPE_NAMES = ['tree', 'bush', 'grass', 'flower'];
@@ -22,11 +22,11 @@ function typeBounds(t) {
     return {
       branchAngle: [0.55, 1.30],
       branchProb:  [0.70, 0.97],
-      lenScale:    [0.50, 0.68],
+      lenScale:    [0.50, 0.62],
       radScale:    [0.45, 0.72],
-      maxDepth:    [4, 6],
+      maxDepth:    [4, 5],
       growthBias:  [-0.20, 1.00],
-      seedLength:  [0.20, 0.55],
+      seedLength:  [0.18, 0.45],
       seedRadius:  [0.06, 0.16],
     };
   }
@@ -34,11 +34,11 @@ function typeBounds(t) {
     return {
       branchAngle: [0.02, 0.18],
       branchProb:  [0.00, 0.08],
-      lenScale:    [0.55, 0.72],
+      lenScale:    [0.55, 0.68],
       radScale:    [0.40, 0.65],
-      maxDepth:    [3, 5],
+      maxDepth:    [3, 4],
       growthBias:  [0.50, 1.50],
-      seedLength:  [0.08, 0.22],
+      seedLength:  [0.08, 0.18],
       seedRadius:  [0.010, 0.028],
     };
   }
@@ -46,22 +46,22 @@ function typeBounds(t) {
     return {
       branchAngle: [0.20, 0.55],
       branchProb:  [0.10, 0.45],
-      lenScale:    [0.50, 0.68],
+      lenScale:    [0.48, 0.62],
       radScale:    [0.40, 0.65],
       maxDepth:    [3, 4],
       growthBias:  [0.50, 1.55],
-      seedLength:  [0.12, 0.32],
+      seedLength:  [0.12, 0.28],
       seedRadius:  [0.025, 0.070],
     };
   }
   return {
     branchAngle: [0.25, 1.05],
     branchProb:  [0.50, 0.95],
-    lenScale:    [0.72, 0.85],
+    lenScale:    [0.72, 0.82],
     radScale:    [0.55, 0.86],
-    maxDepth:    [5, 7],
+    maxDepth:    [5, 6],
     growthBias:  [-0.20, 1.40],
-    seedLength:  [0.50, 1.20],
+    seedLength:  [0.50, 1.10],
     seedRadius:  [0.10, 0.26],
   };
 }
@@ -170,18 +170,18 @@ function estimateMaxHeight(g) {
   return g.seedLength * sum;
 }
 
-// Ceilings derived from the v0.4.9 typeBounds() maxima plugged into the
+// Ceilings derived from the v0.4.11 typeBounds() maxima plugged into the
 // corrected compounding-jitter estimator + a small buffer:
-//   tree  : 1.20 * Σ_{i=0..7}(0.935^i)   = 7.69 m → ceiling 8.0
-//   bush  : 0.55 * Σ_{i=0..6}(0.748^i)   = 1.90 m → ceiling 2.0
-//   grass : 0.22 * Σ_{i=0..5}(0.792^i)   = 0.80 m → ceiling 0.9
-//   flower: 0.32 * Σ_{i=0..4}(0.748^i)   = 0.97 m → ceiling 1.1
-// 12 m runtime cap in growth.wgsl catches anything that escapes this.
+//   tree  : 1.10 * Σ_{i=0..6}(0.902^i)   = 5.74 m → ceiling 6.0
+//   bush  : 0.45 * Σ_{i=0..5}(0.682^i)   = 1.27 m → ceiling 1.5
+//   grass : 0.18 * Σ_{i=0..4}(0.748^i)   = 0.55 m → ceiling 0.7
+//   flower: 0.28 * Σ_{i=0..4}(0.682^i)   = 0.75 m → ceiling 0.9
+// 8 m runtime cap in growth.wgsl catches anything that escapes this.
 const TYPE_CEILING = {
-  0: 8.0,  // tree
-  1: 2.0,  // bush
-  2: 0.9,  // grass
-  3: 1.1,  // flower
+  0: 6.0,  // tree
+  1: 1.5,  // bush
+  2: 0.7,  // grass
+  3: 0.9,  // flower
 };
 
 // ---------------------------------------------------------------------------
@@ -417,4 +417,191 @@ test('tick-by-tick growth: extreme-value genome at every type bound still under 
       `extreme ${PLANT_TYPE_NAMES[t]}: simulated tip ${h.toFixed(3)} m > ceiling ${ceiling} m`,
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// Long-running ecosystem simulation. Mirrors what the live sim actually does:
+// 256 plants, each grows to full depth, then matures, drops a seed with a
+// mutated genome, and is replaced by that mutated child. Repeat for many
+// life cycles. At EVERY tick of EVERY plant, the max segment height must
+// stay below TYPE_CEILING. This catches any drift from accumulated mutation
+// pressure that the single-plant tests would miss.
+// ---------------------------------------------------------------------------
+
+function simulateOnePlantWithHistory(g, rand) {
+  // Returns { maxHeight, ticks }. ticks is how many growth ticks until the
+  // plant stopped extending — useful for sizing the life cycle.
+  const segs = [{ y: 0, len: g.seedLength, depth: 0, alive: true, tip: true, age: 0 }];
+  let maxY = g.seedLength;
+  let lastActiveTick = 0;
+  const TICK_LIMIT = 30;
+  for (let tick = 1; tick < TICK_LIMIT; tick++) {
+    const newSegs = [];
+    let anyGrew = false;
+    for (const s of segs) {
+      if (!s.alive || !s.tip || s.age >= tick) continue;
+      if (s.depth + 1 > g.maxDepth) { s.tip = false; continue; }
+      if (s.len <= 0 || s.len > 2 || Number.isNaN(s.len)) { s.tip = false; continue; }
+      if (Number.isNaN(s.y) || Math.abs(s.y) > 10) { s.tip = false; continue; }
+      const tipY = s.y + s.len;
+      if (tipY > 8 || Number.isNaN(tipY)) { s.tip = false; continue; }
+      const canBranch = s.depth >= 1 && s.depth + 1 < g.maxDepth;
+      const r1 = rand();
+      void rand(); // r2 unused in 1D sim
+      const r3 = rand();
+      void rand(); // r4 unused in 1D sim
+      const nChildren = (canBranch && r1 < g.branchProb) ? 2 : 1;
+      for (let j = 0; j < nChildren; j++) {
+        const isCont = j === 0;
+        const lenScale = isCont ? g.lenScale : g.lenScale * 0.82;
+        const rawLen = s.len * lenScale * (0.9 + r3 * 0.2);
+        const newLen = Math.max(0.01, Math.min(1.5, rawLen));
+        newSegs.push({ y: tipY, len: newLen, depth: s.depth + 1, alive: true, tip: true, age: tick });
+        if (tipY + newLen > maxY) maxY = tipY + newLen;
+        anyGrew = true;
+      }
+      s.tip = false;
+    }
+    for (const ns of newSegs) segs.push(ns);
+    if (anyGrew) lastActiveTick = tick;
+    if (!anyGrew) break;
+  }
+  return { maxHeight: maxY, ticks: lastActiveTick };
+}
+
+test('long-running ecosystem: 256 plants × 50 life cycles, no plant ever exceeds ceiling', () => {
+  const N_PLANTS = 256;
+  const N_GENERATIONS = 50;   // ~12 800 plant-lifecycles total
+
+  // Seed Math.random for mutateGenome and the growth jitter rand.
+  let mrand = 0xDEADBEEF >>> 0;
+  const origRandom = Math.random;
+  const rng = () => {
+    mrand = (mrand + 0x6D2B79F5) >>> 0;
+    let t = mrand;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+  };
+  Math.random = rng;
+
+  let tallest = { type: -1, h: 0, gen: -1, plant: -1 };
+  // Per-type running max height across the whole sim, for the summary.
+  const perTypeMax = [0, 0, 0, 0];
+  let totalLifecycles = 0;
+
+  try {
+    // Initialize 256 plants with random initial genomes.
+    const plants = [];
+    for (let p = 0; p < N_PLANTS; p++) {
+      plants.push(makeGenome(0xFACEFEED, p));
+    }
+
+    for (let gen = 0; gen < N_GENERATIONS; gen++) {
+      for (let p = 0; p < N_PLANTS; p++) {
+        const g = plants[p];
+        const { maxHeight } = simulateOnePlantWithHistory(g, rng);
+        totalLifecycles++;
+        const ceiling = TYPE_CEILING[g.plantType];
+        if (maxHeight > perTypeMax[g.plantType]) perTypeMax[g.plantType] = maxHeight;
+        if (maxHeight > tallest.h) tallest = { type: g.plantType, h: maxHeight, gen, plant: p };
+        assert.ok(
+          maxHeight <= ceiling,
+          `gen ${gen} plant ${p} (${PLANT_TYPE_NAMES[g.plantType]}): max ${maxHeight.toFixed(2)} m > ceiling ${ceiling} m`,
+        );
+        // Replace with a mutated child genome — this is what the live sim
+        // does once a plant matures. Periodically a parent is one of the
+        // other plants (sexual-ish mixing in the live sim is approximated
+        // here by picking a random parent for ~30 % of replacements).
+        if (rng() < 0.30) {
+          const parentIdx = Math.floor(rng() * N_PLANTS);
+          plants[p] = mutateGenome(plants[parentIdx]);
+        } else {
+          plants[p] = mutateGenome(g);
+        }
+      }
+    }
+  } finally {
+    Math.random = origRandom;
+  }
+
+  console.log(`    long-sim: ${totalLifecycles} lifecycles, tallest ${PLANT_TYPE_NAMES[tallest.type]} ${tallest.h.toFixed(2)} m at gen ${tallest.gen}`);
+  console.log(`    per-type max: tree ${perTypeMax[0].toFixed(2)} m, bush ${perTypeMax[1].toFixed(2)} m, grass ${perTypeMax[2].toFixed(2)} m, flower ${perTypeMax[3].toFixed(2)} m`);
+});
+
+// A second long-running test that focuses on what happens when mutation
+// converges hard against the upper type bound — start every plant at the
+// max and apply biased jitter so it stays near the ceiling. Verifies that
+// even pathological evolutionary pressure cannot push a plant past the
+// ceiling.
+test('long-running stress: 100 plants × 100 generations with upward-biased jitter', () => {
+  const N_PLANTS = 100;
+  const N_GENS = 100;
+  const origRandom = Math.random;
+
+  let rngState = 0xC001D00D >>> 0;
+  const rng = () => {
+    rngState = (rngState + 0x6D2B79F5) >>> 0;
+    let t = rngState;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+  };
+
+  // Biased rng for Math.random: jitter inside mutateGenome will trend
+  // upward (random > 0.5 most of the time). This is a worst-case "selection
+  // pressure favors bigger plants" simulation.
+  let biasState = 0xBADCAB1E >>> 0;
+  const biasedRand = () => {
+    biasState = (biasState + 0x6D2B79F5) >>> 0;
+    let t = biasState;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    const u = ((t ^ (t >>> 14)) >>> 0) / 0x100000000;
+    // Bias the [0,1] uniform toward 1.0 by sqrt — most samples land in upper half.
+    return 1.0 - Math.sqrt(1.0 - u);
+  };
+  Math.random = biasedRand;
+
+  let tallest = { type: -1, h: 0 };
+  try {
+    // Start each plant at the upper bound of its type — the worst case the
+    // mutation chain can possibly converge to.
+    const plants = [];
+    for (let p = 0; p < N_PLANTS; p++) {
+      const startType = p % 4;
+      const b = typeBounds(startType);
+      plants.push({
+        branchAngle: b.branchAngle[1],
+        branchProb:  b.branchProb[1],
+        lenScale:    b.lenScale[1],
+        radScale:    b.radScale[1],
+        maxDepth:    b.maxDepth[1],
+        growthBias:  b.growthBias[1],
+        seedLength:  b.seedLength[1],
+        seedRadius:  b.seedRadius[1],
+        leafShape:   0,
+        barkHue:     0.5,
+        plantType:   startType,
+        flowerHue:   0.5,
+      });
+    }
+
+    for (let gen = 0; gen < N_GENS; gen++) {
+      for (let p = 0; p < N_PLANTS; p++) {
+        const g = plants[p];
+        const { maxHeight } = simulateOnePlantWithHistory(g, rng);
+        const ceiling = TYPE_CEILING[g.plantType];
+        if (maxHeight > tallest.h) tallest = { type: g.plantType, h: maxHeight };
+        assert.ok(
+          maxHeight <= ceiling,
+          `biased gen ${gen} plant ${p} (${PLANT_TYPE_NAMES[g.plantType]}): max ${maxHeight.toFixed(2)} m > ceiling ${ceiling} m`,
+        );
+        plants[p] = mutateGenome(g);
+      }
+    }
+  } finally {
+    Math.random = origRandom;
+  }
+  console.log(`    biased-stress: tallest ${PLANT_TYPE_NAMES[tallest.type]} ${tallest.h.toFixed(2)} m`);
 });
