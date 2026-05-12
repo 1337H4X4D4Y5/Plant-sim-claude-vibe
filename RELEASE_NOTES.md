@@ -6,7 +6,28 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.9 tightens typeBounds + adds a tick-by-tick growth simulator to the test suite. Giant sticks should now be impossible by construction. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+_v0.4.10 fixes the "floating leaves" look — twigs now have a per-type minimum radius and leaves scale to twig thickness. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+
+## v0.4.10 — Thicker twigs, leaves scale to twig (2026-05-12)
+
+User screenshot showed leaves appearing to float in midair, supported by twigs so thin they were barely visible. Cause: leaf size was a fixed 8.5–13.5 cm regardless of the twig holding it. Terminal twigs hit the 5 mm radius floor, giving a 26× leaf-to-twig ratio that reads as disconnected.
+
+### Fix: per-type minimum twig radius
+
+`growth.wgsl` now floors the child segment radius based on plant type: tree 12 mm, bush 9 mm, flower 8 mm, grass 3 mm (grass has no leaves, blades stay thin). This ensures leaf-bearing terminal twigs are always visually substantial.
+
+### Fix: gentler per-segment taper
+
+`branch.wgsl` mixed `s.radius` to `s.radius * 0.88` along the segment, pinching twigs to a needle right where the leaves attach. Changed to `0.94` — a more natural, gradual narrowing.
+
+### Fix: leaf size scales with twig radius
+
+`leaf.wgsl` now computes `size = clamp(s.radius * 8.0, 0.04, 0.16) * (0.85..1.15 jitter)`. A 5 mm twig gets a 4 cm leaf (8× ratio); a 2 cm twig gets a 13–18 cm leaf. Same per-leaf jitter range, but tied to the supporting branch.
+
+### Notes
+
+- Genome typeBounds and unit tests unchanged — this is purely a render-side proportion fix. All 7 tests still pass.
+- Grass intentionally retains hair-thin blades; it has no leaves so the floor doesn't affect its silhouette.
 
 ## v0.4.9 — Tighter typeBounds, no giant sticks (2026-05-12)
 

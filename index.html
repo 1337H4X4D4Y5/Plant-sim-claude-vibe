@@ -394,6 +394,12 @@
         desc: 'v0.4.8 still let trees explode. Root cause: tree lenScale upper bound was 0.93, which combined with +10 % per-segment jitter gave an effective compounding ratio of 1.023 — branches grew slightly each tier instead of shrinking. v0.4.9 tightens every type\'s lenScale, maxDepth, and seedLength bounds so the worst-case tree maths out to ~7.7 m. Growth kernel adds per-child length clamp (0.01..2.5 m) and parent-corrupt bail. New unit tests run a tick-by-tick growth simulation across 1000 spawns and a 200-generation mutation chain and assert no plant ever exceeds its type ceiling (tree ≤ 8 m, bush ≤ 2 m, grass ≤ 0.9 m, flower ≤ 1.1 m).',
       },
       {
+        id: 'v0.4.10',
+        title: 'Thicker twigs, leaves scale to twig',
+        status: 'shipped',
+        desc: 'Fixes "leaves look like they\'re floating" — a fixed 8.5 cm leaf hung off a 5 mm twig (26× ratio) reads as disconnected. Three changes: (1) per-type minimum twig radius in growth.wgsl (tree 12 mm, bush 9 mm, flower 8 mm, grass 3 mm) so leaf-bearing terminal twigs are visually substantial; (2) per-segment taper softened from 0.88 → 0.94 so twigs don\'t pinch to a needle right where the leaf attaches; (3) leaf size in leaf.wgsl now scales with the supporting twig\'s radius (radius × 8, clamped 4–16 cm, ±15 % jitter) so a thin twig gets a small leaf and a thick twig gets a big leaf.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
