@@ -6,7 +6,57 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.11 tightens typeBounds further (tree max ~5.7 m vs 7.7 m before) and adds long-running ecosystem tests (12 800 plant-lifecycles per run). Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+_v0.4.12 introduces a per-plant energy ledger so leafless plants starve and die. Selection is now driven by photosynthesis instead of fixed-age retirement. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+
+## v0.4.12 — Energy ledger, leafless plants starve (2026-05-12)
+
+User question: "How do plants survive without leaves?" — they shouldn't, and now they don't.
+
+### Background
+
+Until v0.4.11 the evolution loop was age-based: every plant retired after 25 ticks regardless of how successful it was, and a fixed `perTick: 3` plants were replaced each sim step. Fitness only influenced *which* parent's genome got passed on. So a stumpy 2-segment plant lived just as long as a leafy 30-segment plant, and the population could carry stumps indefinitely.
+
+### Energy model
+
+Every plant has a `cpuPlantEnergy[p]` field (CPU float, starts at 100). Each evolve tick:
+
+```
+gain = measuredLight[p] / LIGHT_PER_ENERGY  (canopy sun captured this tick)
+cost = MAINTENANCE_COST                      (only after 10-tick grace period)
+energy[p] += gain - cost
+```
+
+Tunables (all in `ENERGY_CONFIG` in `main.js` and mirrored in `tests/energy.test.mjs`):
+- `SEED_ENERGY = 100`
+- `GRACE_TICKS = 10`
+- `LIGHT_PER_ENERGY = 4000`
+- `MAINTENANCE_COST = 0.6`
+
+A leafless plant captures 0 canopy light (the existing `light.wgsl` capture kernel only counts segments with `depth >= 2`), gains 0/tick, loses 0.6/tick after grace, and dies in ~167 ticks. A leafy plant in full sun gains ~1.5/tick, accumulates energy, and stays alive indefinitely.
+
+### Death-based replacement
+
+`evolveStep` no longer rotates `perTick: 3` plants on a fixed schedule. Instead it replaces every plant whose energy hit 0 (capped at 12 per tick to avoid frame stalls) with a mutated child of a parent picked weighted by current energy. Healthy plants reproduce more; stumps die without descendants.
+
+### Inspect overlay
+
+Tap-to-inspect now shows `energy: X.X / 100` for the selected plant.
+
+### HUD additions
+
+`deaths(last tick)` and `avgEnergy: N.N / 100` lines added to the debug dump.
+
+### New tests
+
+`tests/energy.test.mjs` — 6 tests:
+- **grace period** — leafless plants lose no energy in their first 10 ticks
+- **starvation** — leafless plants past grace die in 100–200 ticks (verified ~167)
+- **survival** — well-lit plants accumulate energy over 5000 ticks
+- **break-even** — at the calibrated light level, energy holds flat exactly
+- **population evolution** — starts at 50 % stumpy, evolves to 100 % leafy in 800 ticks (128 deaths, 128 births)
+- **mass-death stress** — a 100 % leafless population dies completely in <250 ticks (verified 176)
+
+All 15 tests across both files pass.
 
 ## v0.4.11 — Smaller plants + long-sim ecosystem test (2026-05-12)
 

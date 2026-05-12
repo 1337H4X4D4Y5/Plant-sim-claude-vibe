@@ -406,6 +406,12 @@
         desc: 'Plants still felt too big on the 16 m × 16 m field. v0.4.11 tightens every type\'s bounds further: tree max 5.7 m (was 7.7), bush 1.3 m, grass 0.55 m, flower 0.75 m. Runtime height cap in growth.wgsl lowered 12 m → 8 m and per-child length clamp 2.5 m → 1.5 m. New unit tests run a 50-generation × 256-plant ecosystem simulation (12 800 plant-lifecycles) with mutation between generations, plus a biased-jitter stress test where every plant starts at its upper-bound genome and selection pressure is artificially pushed upward. The long-sim test\'s tallest plant across all 12 800 lifecycles was 5.03 m, well under the 6.0 m tree ceiling. All 9 tests pass.',
       },
       {
+        id: 'v0.4.12',
+        title: 'Energy ledger, leafless plants starve',
+        status: 'shipped',
+        desc: 'User: "How do plants survive without leaves?" Answer: now they don\'t. Each plant has an energy ledger that gains from captured sunlight (the per-plant light readback we already had) and loses to a fixed maintenance cost per tick after a 10-tick grace period. A leafless stump captures no canopy light, drains its 100-energy reserve in ~167 ticks, and is replaced with a mutated child of a high-energy parent. This shifts evolution from age-based (every plant retires after 25 ticks regardless of fitness) to genuine natural selection (only plants that can actually photosynthesize get to reproduce). New tests/energy.test.mjs adds 6 tests covering grace period, starvation timing, break-even arithmetic, full population evolution from 50 % stumpy → 100 % leafy in 800 ticks, and a stress test that confirms a 100 % leafless population dies completely. Inspect overlay now shows current energy / 100. All 15 tests pass.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
