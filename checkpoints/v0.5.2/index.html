@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d1410" />
+  <title>Plant Sim v0.5.2 &mdash; dead trees fall over + decay</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0d1410; color: #d7e4dc; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+    #hud {
+      position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      right: 0;
+      margin: 12px;
+      padding: 8px 10px;
+      background: rgba(13, 20, 16, 0.85);
+      border: 1px solid #2a3a32;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+      min-width: 130px;
+      max-width: 45vw;
+      z-index: 5;
+    }
+    #hud .accent { color: #7cd29a; }
+    #hud .row { white-space: nowrap; }
+    #copy, #leaf-shape {
+      pointer-events: auto;
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      padding: 6px 10px;
+      background: rgba(124, 210, 154, 0.15);
+      color: #7cd29a;
+      border: 1px solid #4e8c69;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #copy:active, #leaf-shape:active { background: rgba(124, 210, 154, 0.35); }
+    #copy.ok { background: rgba(124, 210, 154, 0.35); color: #d7e4dc; border-color: #7cd29a; }
+
+    .speed-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      pointer-events: auto;
+    }
+    .speed-row .lbl {
+      font-size: 11px;
+      color: #7cd29a;
+      flex-shrink: 0;
+    }
+    #speed-slider {
+      flex: 1;
+      pointer-events: auto;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 18px;
+      background: transparent;
+      margin: 0;
+    }
+    #speed-slider::-webkit-slider-runnable-track {
+      height: 6px;
+      background: #3f6452;
+      border: 1px solid #4e8c69;
+      border-radius: 4px;
+    }
+    #speed-slider::-moz-range-track {
+      height: 6px;
+      background: #3f6452;
+      border: 1px solid #4e8c69;
+      border-radius: 4px;
+    }
+    #speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      background: #7cd29a;
+      border-radius: 50%;
+      border: 2px solid #0d1410;
+      margin-top: -8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+    #speed-slider::-moz-range-thumb {
+      width: 20px; height: 20px;
+      background: #7cd29a;
+      border-radius: 50%;
+      border: 2px solid #0d1410;
+    }
+    #speed-label {
+      min-width: 48px;
+      text-align: right;
+      font-size: 11px;
+      color: #d7e4dc;
+      flex-shrink: 0;
+    }
+
+    #help {
+      position: fixed;
+      top: env(safe-area-inset-top, 0px);
+      left: 0;
+      margin: 12px;
+      padding: 8px 10px;
+      background: rgba(13, 20, 16, 0.85);
+      border: 1px solid #2a3a32;
+      border-radius: 8px;
+      font-size: 10px;
+      color: #7a8d83;
+      line-height: 1.5;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      user-select: none;
+      max-width: min(45vw, 280px);
+      z-index: 4;
+    }
+
+    #err {
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background: rgba(13, 20, 16, 0.96);
+      color: #d97766;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.7;
+      z-index: 20;
+    }
+    #err .inner { max-width: 60ch; }
+    #err code { display: block; margin-top: 12px; color: #d7e4dc; font-size: 12px; word-break: break-word; }
+
+    /* Fallback when navigator.clipboard.writeText isn't allowed (some
+       in-app browsers). User can long-press and copy from the textarea. */
+    #inspect {
+      position: fixed;
+      left: 50%;
+      bottom: env(safe-area-inset-bottom, 0px);
+      transform: translateX(-50%);
+      margin: 0 0 16px 0;
+      width: min(320px, calc(100vw - 24px));
+      padding: 10px 14px;
+      background: rgba(13, 20, 16, 0.92);
+      border: 1px solid #4e8c69;
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.55;
+      color: #d7e4dc;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: auto;
+      user-select: none;
+      z-index: 15;
+    }
+    #inspect[hidden] { display: none; }
+    #inspect .ins-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    #inspect #ins-title {
+      font-weight: 600;
+      color: #7cd29a;
+    }
+    #inspect #ins-close {
+      pointer-events: auto;
+      background: transparent;
+      border: 1px solid #2a3a32;
+      color: #7a8d83;
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0;
+    }
+    #inspect #ins-close:active { background: rgba(124, 210, 154, 0.15); }
+    #inspect .ins-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      white-space: nowrap;
+    }
+    #inspect .ins-k { color: #7a8d83; }
+    #inspect .ins-v { color: #d7e4dc; }
+    #inspect hr {
+      border: 0;
+      border-top: 1px solid #2a3a32;
+      margin: 6px 0;
+    }
+
+    #fallback {
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(13, 20, 16, 0.92);
+      z-index: 30;
+    }
+    #fallback .box {
+      width: min(100%, 560px);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    #fallback textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 280px;
+      background: #131c17;
+      color: #d7e4dc;
+      border: 1px solid #2a3a32;
+      border-radius: 6px;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 11px;
+      resize: none;
+    }
+    #fallback .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    #fallback button {
+      padding: 8px 16px;
+      background: rgba(124, 210, 154, 0.15);
+      color: #7cd29a;
+      border: 1px solid #4e8c69;
+      border-radius: 5px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div id="help">
+    drag = orbit<br/>
+    2-finger / shift+drag = pan<br/>
+    pinch / wheel = zoom<br/>
+    WASD &middot; Q/E
+  </div>
+
+  <div id="hud">
+    <div class="row">v0.5.2 <span class="accent">&middot;</span> <span id="fps">--</span> fps</div>
+    <div class="row"><span class="accent">tick</span> <span id="tick">0</span> <span class="accent">&middot; segs</span> <span id="segs">--</span></div>
+    <div class="row"><span class="accent">disp</span> <span id="disp">--</span> <span class="accent">&middot; live</span> <span id="live">--</span></div>
+    <div class="row"><span class="accent">season</span> <span id="season">--</span></div>
+    <div class="speed-row">
+      <span class="lbl">speed</span>
+      <input id="speed-slider" type="range" min="0" max="10" step="0.5" value="1" />
+      <span id="speed-label">1.0&times;</span>
+    </div>
+    <button id="leaf-shape" type="button">Leaf: varied &rsaquo;</button>
+    <button id="copy" type="button">Copy debug</button>
+  </div>
+
+  <div id="err"><div class="inner"></div></div>
+
+  <div id="inspect" hidden>
+    <div class="ins-head">
+      <span id="ins-title">Plant #—</span>
+      <button id="ins-close" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div id="ins-body"></div>
+  </div>
+
+  <div id="fallback">
+    <div class="box">
+      <textarea id="fallback-text" readonly></textarea>
+      <div class="actions">
+        <button id="fallback-close" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+  <script src="../back-to-hub.js"></script>
+</body>
+</html>

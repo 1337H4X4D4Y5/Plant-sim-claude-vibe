@@ -6,7 +6,49 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.5.1 adds wind gusts + fake-SSS leaves on top of the seasonal cycle. Next: real sun shadow map or ACES tonemap._
+_v0.5.2 makes death tangible — dying plants tilt over, decay, and shrink before the slot is reused. Next: real sun shadow map or ACES tonemap._
+
+## v0.5.2 — Dead trees fall over + decay (2026-05-12)
+
+User asked: "Make dead trees fall over and decay." Before this, the death/birth cycle was a teleport — a starved plant disappeared between frames and was replaced with a fresh seedling at a new position. Now it's a multi-second animation: the plant tilts over, leaves drop, the wood greys, and the whole thing shrinks into the ground before a new seedling appears.
+
+### State machine
+
+`evolveStep` now distinguishes three states per plant:
+
+| State          | `cpuPlantDeathProgress[p]` | Behaviour |
+|----------------|----------------------------|-----------|
+| alive          | `0`                        | energy ledger runs as usual |
+| dying          | `(0, 1)`                   | advances `+ 1/DECAY_TICKS` each tick, no energy changes, doesn't count as parent |
+| fully decayed  | `≥ 1`                      | slot replaced with mutated child this tick |
+
+`DECAY_TICKS = 24` → ~12 s of dying at 2 Hz (1.2 s at 10×).
+
+### GPU transport
+
+Decay progress packs into the existing spare `genome._pad0` slot — every `evolveStep` rewrites the full 12 KB genome buffer in one `queue.writeBuffer` call. No new bind groups, no new buffers.
+
+### Visual transform
+
+Both `branch.wgsl` and `leaf.wgsl` apply `applyDecayTilt(worldPos, pivot, decay, plantIdx)`:
+
+- **Pivot** is the plant's root segment (slot 0 of its segment range), read directly from the segment buffer.
+- **Fall direction** is derived from `hash32(plantIdx)` so each tree falls in a stable, plant-unique direction.
+- **Rotation axis** is the horizontal perpendicular to the fall direction. Tilt grows 0° → 90° over `decay ∈ [0, 0.7]` via Rodrigues' formula.
+- **Shrink** kicks in for `decay ∈ [0.7, 1.0]`, scaling toward the pivot so the trunk dissolves rather than just lying flat forever.
+- **Normals** are rotated by the same angle so lighting follows the lean.
+
+### Other behaviour
+
+- `branch.wgsl` tints albedo toward weathered grey-brown `(0.28, 0.22, 0.16)` as decay progresses (up to 85 % mix).
+- `leaf.wgsl` bails completely when `decay >= 0.4` — leaves drop ahead of the trunk tilt so the canopy thins first, then the bare trunk slowly tips over.
+- Wind is suppressed on dying plants (no leaves to catch the breeze, and the tilt is the dominant motion now).
+- `growth.wgsl` clears tip bits on any plant with `decay > 0` — dying trees stop appending segments.
+- Tap-to-inspect now shows a `state: alive` / `state: dying (NN %)` row.
+
+### Tests
+
+The energy + genome tests don't touch the visual transform, and decay only affects rendering + scheduling — 17 tests still pass.
 
 ## v0.5.1 — Wind gusts + fake-SSS leaves (2026-05-12)
 

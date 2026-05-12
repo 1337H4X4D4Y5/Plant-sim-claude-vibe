@@ -430,6 +430,12 @@
         desc: 'Two visual upgrades. (1) Wind gusts: branch + leaf wind amplitude is multiplied by a slow time-varying intensity (sum of 35 s and 90 s sines, range ~0.25–1.75) so the field has periods of calm and stronger gusts instead of a metronome sway. (2) Fake subsurface scattering on leaves: the previous back-light was a flat 0.4× lambert — now back-lit leaves are tinted warm yellow-green (1.20, 1.00, 0.45) and their strength scales with view-alignment to the sun, so looking toward the sun reveals a classic glowing-canopy halo. Both signals piggy-back on spare frame-uniform slots (viewport.zw) — no new buffers or bind groups. 17 tests still pass.',
       },
       {
+        id: 'v0.5.2',
+        title: 'Dead trees fall over + decay',
+        status: 'shipped',
+        desc: 'Plants no longer pop instantly into a fresh seedling when they starve. Each plant now has a CPU-side decay progress (0 = alive, (0, 1] = dying) packed into the spare `genome._pad0` slot every evolve tick. When energy hits zero, the plant enters the dying state for DECAY_TICKS = 24 ticks (~12 s @ 2 Hz). Branch + leaf vertex shaders tilt the whole tree around its root (Rodrigues rotation around a horizontal axis with stable per-plant fall direction) from 0° → 90° over the first 70 % of decay, then shrink toward the pivot during the last 30 %. Bark drifts toward weathered grey-brown; leaves drop entirely once decay ≥ 0.4 (so the canopy thins ahead of the trunk lean). Growth kernel bails on dying plants. The slot is reused for a mutated child of a high-energy parent only after decay completes. Inspect overlay shows alive / dying (NN %).',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
