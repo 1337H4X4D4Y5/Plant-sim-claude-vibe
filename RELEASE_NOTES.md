@@ -6,7 +6,44 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.13 actually makes the energy system visible: leafless sticks gain 33 % of full capture, energy is capped, and aging cost forces turnover even in full sun. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+_v0.5.0 opens the fidelity milestone with a global seasonal cycle. Next: fake-SSS leaves or real sun shadow map._
+
+## v0.5.0 — Seasons (2026-05-12)
+
+First feature toward milestone v0.5 (fidelity). The field now cycles through spring → summer → autumn → winter on a 480-second loop (about 2 min per season at 1× speed, ~12 s per season at 10×).
+
+### Implementation
+
+`computeSeason(t, period)` in `main.js` produces `season ∈ [0, 1)`. It's packed into the spare slot of the frame uniform's `viewport` vec4 and read by `leaf.wgsl` as `frame.viewport.z`. No new bind groups; no new buffers.
+
+Two leaf-shader functions handle the visuals:
+
+- `seasonLeafScale(s)` — leaves bud during `[0.0, 0.10]`, full size through `[0.10, 0.85]`, drop during `[0.85, 0.97]`, bare in `[0.97, 1.0]`. The vertex shader bails (clip behind near plane) when scale < 0.02, so winter is a literal no-render.
+- `seasonLeafTint(s, summerColor, fallColor)` — summer green through `[0.0, 0.55]`, blends into the species' fall colour through `[0.55, 0.82]`, then to a dead-brown through `[0.82, 0.95]`.
+
+Per-species fall palette (keyed off `genome.leafShape`):
+
+| Shape  | Fall colour          |
+|--------|----------------------|
+| oval   | amber  `(0.85, 0.55, 0.15)` |
+| round  | yellow `(0.92, 0.78, 0.18)` |
+| lance  | drab   `(0.55, 0.45, 0.20)` |
+| lobed  | red-orange `(0.85, 0.30, 0.12)` |
+| heart  | deep red `(0.72, 0.18, 0.18)` |
+
+Per-leaf phase jitter (±2 %) keeps individual leaves from budding or dropping in perfect lockstep — gives the canopy a more organic transition.
+
+### UI
+
+A new HUD pill shows the current season name and percent-of-year. The debug-dump text adds the same line.
+
+### Notes
+
+- Flowers (`plantType == 3`) skip the seasonal tint — their petal palette is already driven by `genome.flowerHue`. They do still bud / drop per `seasonLeafScale`, so flowers bloom in spring/summer and disappear in winter.
+- Grass already had no leaves; it's unaffected by seasons.
+- Energy / fitness math is unchanged. Plants still photosynthesise the same amount year-round (a winter slowdown would be plausible but risks mass starvation cycles; left for a future version if desired).
+
+All 17 tests pass.
 
 ## v0.4.13 — Visible turnover (aging + leaf-tied capture) (2026-05-12)
 

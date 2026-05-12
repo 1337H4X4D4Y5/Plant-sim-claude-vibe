@@ -418,6 +418,12 @@
         desc: 'User: "Plants don\'t die off nor reproduce to compete with other plants for light." v0.4.12 had two bugs: (1) light.wgsl counted depth-2 stick segments as fully photosynthetic, so a leafless single-chain plant gained the same energy as a leafy one; (2) leafy plants in full sun gained way more than they spent, accumulated forever, and never died. v0.4.13 fixes both. light.wgsl now weights capture by `clamp((depth - 1.5) / 1.5, 0, 1)` so depth-2 sticks get only 33 % of full and depth-4+ leaves get 100 %. Energy is capped at MAX_ENERGY = 140 (no infinite banking). New AGE_COST = 0.012 × age means even leafy plants in full sun die of old age around tick 250–350. Maintenance cost 0.6 → 1.0, grace 10 → 8, readback 1000 ms → 250 ms, REPLACE_CAP 12 → 32 — all so death and rebirth happen on a visible time scale. Tests confirm 800 deaths in 1500 ticks for a 100-plant well-lit population (every plant turns over ~8×). 17 tests pass.',
       },
       {
+        id: 'v0.5.0',
+        title: 'Seasons — leaves change colour, drop in winter',
+        status: 'shipped',
+        desc: 'First feature in milestone v0.5 (fidelity). A global seasonal cycle now runs at 480 s per year (so a season is ~2 min at 1×, ~12 s at 10× speed): spring buds, summer green, autumn fall colours (per-species: oval amber, birch yellow, willow drab, maple red-orange, heart deep red), late autumn drop, winter bare branches. Implemented as a single `season ∈ [0,1)` value packed into the frame uniform; leaf.wgsl applies a per-leaf size scale and a colour tint blended through the cycle. Per-leaf phase jitter so leaves don\'t all bud or drop in lockstep. HUD pill shows current season + cycle progress. Tests: 17 pass (no model changes — pure visual).',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
