@@ -412,6 +412,12 @@
         desc: 'User: "How do plants survive without leaves?" Answer: now they don\'t. Each plant has an energy ledger that gains from captured sunlight (the per-plant light readback we already had) and loses to a fixed maintenance cost per tick after a 10-tick grace period. A leafless stump captures no canopy light, drains its 100-energy reserve in ~167 ticks, and is replaced with a mutated child of a high-energy parent. This shifts evolution from age-based (every plant retires after 25 ticks regardless of fitness) to genuine natural selection (only plants that can actually photosynthesize get to reproduce). New tests/energy.test.mjs adds 6 tests covering grace period, starvation timing, break-even arithmetic, full population evolution from 50 % stumpy → 100 % leafy in 800 ticks, and a stress test that confirms a 100 % leafless population dies completely. Inspect overlay now shows current energy / 100. All 15 tests pass.',
       },
       {
+        id: 'v0.4.13',
+        title: 'Visible turnover (aging + leaf-tied capture)',
+        status: 'shipped',
+        desc: 'User: "Plants don\'t die off nor reproduce to compete with other plants for light." v0.4.12 had two bugs: (1) light.wgsl counted depth-2 stick segments as fully photosynthetic, so a leafless single-chain plant gained the same energy as a leafy one; (2) leafy plants in full sun gained way more than they spent, accumulated forever, and never died. v0.4.13 fixes both. light.wgsl now weights capture by `clamp((depth - 1.5) / 1.5, 0, 1)` so depth-2 sticks get only 33 % of full and depth-4+ leaves get 100 %. Energy is capped at MAX_ENERGY = 140 (no infinite banking). New AGE_COST = 0.012 × age means even leafy plants in full sun die of old age around tick 250–350. Maintenance cost 0.6 → 1.0, grace 10 → 8, readback 1000 ms → 250 ms, REPLACE_CAP 12 → 32 — all so death and rebirth happen on a visible time scale. Tests confirm 800 deaths in 1500 ticks for a 100-plant well-lit population (every plant turns over ~8×). 17 tests pass.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',

@@ -6,7 +6,57 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.12 introduces a per-plant energy ledger so leafless plants starve and die. Selection is now driven by photosynthesis instead of fixed-age retirement. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+_v0.4.13 actually makes the energy system visible: leafless sticks gain 33 % of full capture, energy is capped, and aging cost forces turnover even in full sun. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+
+## v0.4.13 — Visible turnover (aging + leaf-tied capture) (2026-05-12)
+
+User: "Plants don't die off nor reproduce to compete with other plants for light."
+
+### Two bugs in v0.4.12
+
+1. **light.wgsl counted depth-2 sticks as fully photosynthetic.** The capture kernel had `if (s.depth < 2.0) return;` and treated every other segment as a 100 % leaf. So a leafless single-chain plant with a depth-2 segment captured the same per-segment light as a leafy plant — they all stayed alive.
+2. **Leafy plants in full sun banked infinite energy.** Gain was unbounded; cost was a flat 0.6/tick. Once a plant got established it never died, so the population froze in place after the first generation.
+
+### Fix 1: leaf-tied capture weighting
+
+`light.wgsl` now multiplies captured light by `clamp((s.depth - 1.5) / 1.5, 0, 1)`:
+
+| depth | weight |
+|-------|--------|
+| 2     | 0.33   |
+| 3     | 1.00   |
+| 4+    | 1.00   |
+
+A stick that only reached depth 2 captures a third of what a leaf-bearing depth-3+ canopy captures. Combined with the new aging cost, sticks starve.
+
+### Fix 2: energy cap + aging cost
+
+`ENERGY_CONFIG` rebalanced:
+
+| Field            | v0.4.12 → v0.4.13 |
+|------------------|-------------------|
+| SEED_ENERGY      | 100 → 100         |
+| MAX_ENERGY       | (none) → 140      |
+| GRACE_TICKS      | 10 → 8            |
+| MAINTENANCE_COST | 0.6 → 1.0         |
+| AGE_COST         | (none) → 0.012    |
+
+`MAX_ENERGY = 140` caps the ledger so no parent can bank infinite reserves. `AGE_COST = 0.012 * age` means cost scales with age — even a leafy plant in full sun dies around tick 250–350 (test measured 278). Stumps die in ~75 ticks (vs ~167 in v0.4.12).
+
+### Operational changes
+
+- Light readback interval `1000 ms → 250 ms` so the energy ledger reflects current shading rather than 1-second-stale data.
+- `REPLACE_CAP` raised `12 → 32` per tick so a wave of starvation deaths gets re-seeded the same tick instead of bottlenecking.
+
+### New tests
+
+`tests/energy.test.mjs` extended:
+- **senescence** — confirms even abundant-light plants die of old age (measured: tick 157 with 5000 light)
+- **full-sun survival** — leafy plants outlive stumps by ≥3× (measured: 278 vs 75 ticks, 3.7×)
+- **energy cap** — flooding light for 100 ticks doesn't push energy above MAX_ENERGY
+- **turnover** — well-lit 100-plant steady-state population sees 800 deaths over 1500 ticks (every plant turns over ~8×)
+
+17 tests across both files pass.
 
 ## v0.4.12 — Energy ledger, leafless plants starve (2026-05-12)
 

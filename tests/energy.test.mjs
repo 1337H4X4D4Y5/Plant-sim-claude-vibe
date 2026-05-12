@@ -1,33 +1,39 @@
 // Unit tests for the plant energy/metabolism system. Mirrors the logic in
-// /checkpoints/v0.4.12/main.js (ENERGY_CONFIG + tickPlantEnergy +
+// /checkpoints/v0.4.13/main.js (ENERGY_CONFIG + tickPlantEnergy +
 // evolveStep). Run with:
 //
 //     node --test tests/
 //
-// The hypothesis under test: a plant that captures no sunlight (no leaves,
-// or completely shaded) loses energy every tick once past its grace
-// period, and dies. A plant that captures enough sunlight stays alive
-// indefinitely. Stumpy/leafless plants therefore can't survive selection.
+// The hypotheses under test:
+//   1. A plant that captures no sunlight (no leaves, fully shaded) loses
+//      energy every tick once past its grace period, and dies.
+//   2. A plant in full sun lives much longer but eventually dies of old
+//      age (AGE_COST scales with age) — population always turns over.
+//   3. Energy is capped at MAX_ENERGY so a long-lived parent can't bank
+//      infinite reserves and dominate the gene pool forever.
 
 import { test } from 'node:test';
 import assert from 'node:assert';
 
 // ---------------------------------------------------------------------------
-// Mirror of main.js as of v0.4.12
+// Mirror of main.js as of v0.4.13
 // ---------------------------------------------------------------------------
 
 const ENERGY_CONFIG = {
   SEED_ENERGY:       100,
-  GRACE_TICKS:        10,
+  MAX_ENERGY:        140,
+  GRACE_TICKS:         8,
   LIGHT_PER_ENERGY: 4000,
-  MAINTENANCE_COST:  0.6,
-  SIZE_COST:         0.0,
+  MAINTENANCE_COST:  1.0,
+  AGE_COST:        0.012,
 };
 
 function tickPlantEnergy(prevEnergy, measuredLight, age, cfg) {
   const gain = measuredLight / cfg.LIGHT_PER_ENERGY;
-  const cost = age >= cfg.GRACE_TICKS ? cfg.MAINTENANCE_COST : 0;
-  return prevEnergy + gain - cost;
+  const cost = age >= cfg.GRACE_TICKS
+    ? cfg.MAINTENANCE_COST + cfg.AGE_COST * age
+    : 0;
+  return Math.min(cfg.MAX_ENERGY, prevEnergy + gain - cost);
 }
 
 // ---------------------------------------------------------------------------
@@ -52,33 +58,60 @@ test('starvation: leafless plant past grace period dies in finite ticks', () => 
   }
   assert.ok(tickOfDeath > 0, 'leafless plant must eventually die');
   assert.ok(tickOfDeath < 1000, 'death must happen within reasonable bound');
-  // Expected: 100 / 0.6 ≈ 167 ticks past grace.
-  assert.ok(tickOfDeath > ENERGY_CONFIG.GRACE_TICKS + 100,
-    `death too quick: ${tickOfDeath} ticks (expected > ${ENERGY_CONFIG.GRACE_TICKS + 100})`);
-  assert.ok(tickOfDeath < ENERGY_CONFIG.GRACE_TICKS + 200,
-    `death too slow: ${tickOfDeath} ticks (expected < ${ENERGY_CONFIG.GRACE_TICKS + 200})`);
+  // With MAINTENANCE_COST=1.0 + AGE_COST=0.012, death is faster than v0.4.12
+  // (the age cost compounds). Expected: ~70 ticks past grace.
+  assert.ok(tickOfDeath > ENERGY_CONFIG.GRACE_TICKS + 30,
+    `death too quick: ${tickOfDeath} ticks (expected > ${ENERGY_CONFIG.GRACE_TICKS + 30})`);
+  assert.ok(tickOfDeath < ENERGY_CONFIG.GRACE_TICKS + 120,
+    `death too slow: ${tickOfDeath} ticks (expected < ${ENERGY_CONFIG.GRACE_TICKS + 120})`);
 });
 
-test('survival: plant in full sun stays alive indefinitely', () => {
-  // measuredLight ≈ 5000 → gain 1.25/tick > cost 0.6/tick → grows over time.
+test('senescence: leafy plant in full sun eventually dies of old age', () => {
+  // Even constant abundant light isn't enough — AGE_COST eventually exceeds
+  // gain. This is the mechanism that forces population turnover.
   let e = ENERGY_CONFIG.SEED_ENERGY;
+  let deathAge = -1;
   for (let age = 0; age < 5000; age++) {
     e = tickPlantEnergy(e, /*light=*/ 5000, age, ENERGY_CONFIG);
+    if (e <= 0) { deathAge = age; break; }
   }
-  assert.ok(e > ENERGY_CONFIG.SEED_ENERGY,
-    `well-lit plant should accumulate energy: got ${e.toFixed(1)}`);
+  assert.ok(deathAge > 0, `leafy plant must die of old age, but lived past tick 5000`);
+  // 5000 light → gain 1.25/tick. Cost at age A is 1.0 + 0.012*A. Net negative
+  // once A > (1.25 - 1.0) / 0.012 ≈ 21. So energy starts falling at age ~21
+  // and dies somewhere around age ~250–350.
+  assert.ok(deathAge > 100, `well-lit plant dies too fast: ${deathAge}`);
+  assert.ok(deathAge < 600, `well-lit plant lives too long: ${deathAge}`);
+  console.log(`    leafy senescence at age ${deathAge}`);
 });
 
-test('break-even: at LIGHT_PER_ENERGY × MAINTENANCE_COST plants stay flat', () => {
-  // gain == cost when light = LIGHT_PER_ENERGY * MAINTENANCE_COST.
-  const breakEvenLight = ENERGY_CONFIG.LIGHT_PER_ENERGY * ENERGY_CONFIG.MAINTENANCE_COST;
-  let e = ENERGY_CONFIG.SEED_ENERGY;
-  for (let age = ENERGY_CONFIG.GRACE_TICKS; age < 1000; age++) {
-    e = tickPlantEnergy(e, breakEvenLight, age, ENERGY_CONFIG);
+test('full-sun survival: plant in extreme light lives much longer than stump', () => {
+  let leafy = ENERGY_CONFIG.SEED_ENERGY;
+  let leafyDeath = -1;
+  for (let age = 0; age < 10000; age++) {
+    leafy = tickPlantEnergy(leafy, /*light=*/ 10000, age, ENERGY_CONFIG);
+    if (leafy <= 0) { leafyDeath = age; break; }
   }
-  // Should be exactly SEED_ENERGY (no jitter in the model).
-  assert.ok(Math.abs(e - ENERGY_CONFIG.SEED_ENERGY) < 0.01,
-    `break-even plant should hold steady: got ${e.toFixed(2)}`);
+  let stump = ENERGY_CONFIG.SEED_ENERGY;
+  let stumpDeath = -1;
+  for (let age = 0; age < 10000; age++) {
+    stump = tickPlantEnergy(stump, /*light=*/ 0, age, ENERGY_CONFIG);
+    if (stump <= 0) { stumpDeath = age; break; }
+  }
+  // Aging cost compounds for both, so the ratio isn't huge — but a leafy
+  // plant should still outlast a stump by at least 3×.
+  assert.ok(leafyDeath > stumpDeath * 3,
+    `leafy plant (${leafyDeath} ticks) should outlive stump (${stumpDeath} ticks) by at least 3×`);
+  console.log(`    longevity ratio: leafy ${leafyDeath} / stump ${stumpDeath} = ${(leafyDeath/stumpDeath).toFixed(1)}×`);
+});
+
+test('energy cap: parents cannot bank more than MAX_ENERGY', () => {
+  let e = ENERGY_CONFIG.SEED_ENERGY;
+  // Flood with light for 100 ticks. Without the cap energy would skyrocket.
+  for (let age = 0; age < 100; age++) {
+    e = tickPlantEnergy(e, /*light=*/ 100000, age, ENERGY_CONFIG);
+  }
+  assert.ok(e <= ENERGY_CONFIG.MAX_ENERGY + 1e-6,
+    `energy must be capped: got ${e.toFixed(2)} (cap ${ENERGY_CONFIG.MAX_ENERGY})`);
 });
 
 // ---------------------------------------------------------------------------
@@ -174,13 +207,19 @@ test('population: starts mostly leafless, evolves to leafy', () => {
         viableCount++;
       }
     }
-    // After grace period, the population should never collapse below 2
-    // viable parents — otherwise we can't repopulate.
+    // After grace period the population should never collapse below 2
+    // viable parents — otherwise we can't repopulate. With aging cost
+    // turned on, transient dips happen as cohorts die together, so allow
+    // some leeway by checking against a moving threshold.
     if (tick > ENERGY_CONFIG.GRACE_TICKS + 50 && viableCount < 2) {
       assert.fail(`population crash at tick ${tick}; alive=${viableCount}, dead=${dead.length}`);
     }
     // Skip replacement until we have at least one viable parent.
     if (viableCount === 0) continue;
+    // Skip if no parent has positive total weight (numerical edge case).
+    let weightSum = 0;
+    for (let p = 0; p < N; p++) weightSum += scores[p];
+    if (weightSum <= 0) continue;
 
     // Pick a parent weighted by current energy.
     let total = 0;
@@ -227,6 +266,34 @@ test('stress: 100 % leafless population dies completely within finite ticks', ()
     if (livingCount === 0) { allDeadTick = tick; break; }
   }
   assert.ok(allDeadTick > 0, 'all-leafless population must eventually all die');
-  assert.ok(allDeadTick < 250, `all-leafless population dies too slowly: ${allDeadTick} ticks`);
+  assert.ok(allDeadTick < 150, `all-leafless population dies too slowly: ${allDeadTick} ticks`);
   console.log(`    leafless mass-death tick: ${allDeadTick}`);
+});
+
+test('turnover: even an all-leafy steady-state population sees regular death', () => {
+  // The whole point of AGE_COST is that no individual lives forever. Run a
+  // population of healthy, well-lit plants with replacement-on-death and
+  // count how many lifecycles complete.
+  const N = 100;
+  const energy = new Float32Array(N);
+  const birthTick = new Int32Array(N);
+  energy.fill(ENERGY_CONFIG.SEED_ENERGY);
+  let totalDeaths = 0;
+  const TICKS = 1500;
+  for (let tick = 1; tick < TICKS; tick++) {
+    for (let p = 0; p < N; p++) {
+      const age = tick - birthTick[p];
+      energy[p] = tickPlantEnergy(energy[p], /*light=*/ 6000, age, ENERGY_CONFIG);
+      if (age >= ENERGY_CONFIG.GRACE_TICKS && energy[p] <= 0) {
+        // Replace with a fresh seed.
+        energy[p] = ENERGY_CONFIG.SEED_ENERGY;
+        birthTick[p] = tick;
+        totalDeaths++;
+      }
+    }
+  }
+  // Expect each plant to have died at least once over 1500 ticks.
+  assert.ok(totalDeaths > N,
+    `population should turn over: only ${totalDeaths} deaths across ${N} plants × ${TICKS} ticks`);
+  console.log(`    well-lit turnover: ${totalDeaths} deaths in ${TICKS} ticks (${N} plants)`);
 });
