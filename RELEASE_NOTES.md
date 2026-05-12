@@ -6,7 +6,44 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.4.8 hardens runtime + corrects the unit-test estimator. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+_v0.4.9 tightens typeBounds + adds a tick-by-tick growth simulator to the test suite. Giant sticks should now be impossible by construction. Next plausible step: continue with v0.5 fidelity or v0.6 interaction polish._
+
+## v0.4.9 — Tighter typeBounds, no giant sticks (2026-05-12)
+
+v0.4.8 hardened the runtime cap but didn't fix the root cause: user screenshot still showed giant sticks. The cause was the genome bounds themselves.
+
+### Root cause
+
+Tree `lenScale` upper bound was `0.93`. The growth kernel multiplies each child's length by `parent.len * lenScale * (0.9 + r * 0.2)`. With `lenScale = 0.93` the worst-case per-segment ratio is `0.93 × 1.10 = 1.023` — **greater than one**, so branches grow slightly each tier instead of shrinking. Over 8 levels of depth that compounds to a 14 m mathematical ceiling, and the test correctly accepted it. But "14 m" trees on a 100 m² field look like sticks because the silhouette becomes a single trunk that overshadows everything around it.
+
+### Fix: tighten every type's bounds
+
+| Type   | Field      | v0.4.8 → v0.4.9       |
+|--------|------------|-----------------------|
+| tree   | lenScale   | 0.72…0.93 → 0.72…0.85 |
+| tree   | maxDepth   | 5…8 → 5…7             |
+| tree   | seedLength | 0.60…1.40 → 0.50…1.20 |
+| bush   | lenScale   | 0.50…0.72 → 0.50…0.68 |
+| bush   | seedLength | 0.25…0.80 → 0.20…0.55 |
+| grass  | lenScale   | 0.65…0.82 → 0.55…0.72 |
+| grass  | seedLength | 0.10…0.28 → 0.08…0.22 |
+| flower | lenScale   | 0.50…0.72 → 0.50…0.68 |
+| flower | seedLength | 0.15…0.45 → 0.12…0.32 |
+
+New mathematical ceilings: tree 7.7 m, bush 1.9 m, grass 0.8 m, flower 1.0 m. The runtime cap in `growth.wgsl` drops 20 m → 12 m to match.
+
+### Fix: per-child length clamp
+
+`growth.wgsl` now `clamp(rawLen, 0.01, 2.5)` on every child. Even if jitter or NaN somehow produced a 50 m length, the buffer would store ≤ 2.5 m. Belt-and-braces.
+
+### Test: tick-by-tick growth simulator
+
+`tests/genome.test.mjs` now includes a JS mirror of `growth.wgsl` that ticks plants forward in worst-case upright mode. Three new tests:
+- 1000 random spawns: simulated height stays under ceiling.
+- 200-generation mutation chain × 4 trials: never exceeds ceiling.
+- Extreme-value genome at every type's upper bound: still under ceiling.
+
+Tallest observed across the 1000-spawn run: 7.62 m tree (under the 8.0 m ceiling). All 7 tests pass.
 
 ## v0.4.8 — Height cap + NaN guards (2026-05-11)
 

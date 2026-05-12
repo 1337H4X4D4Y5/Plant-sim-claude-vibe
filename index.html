@@ -388,6 +388,12 @@
         desc: 'Fixes "exploding huge sticks" reported at speed 10×. Growth kernel terminates any tip whose world Y exceeds 20 m; branch + leaf vertex shaders skip rendering segments with NaN / huge positions or impossible lengths. Unit test estimator corrected — the +10 % length jitter compounds per segment, so the actual worst-case tree is 14 m not 10.6 m. Ceilings updated to match.',
       },
       {
+        id: 'v0.4.9',
+        title: 'Tighter typeBounds, no giant sticks',
+        status: 'shipped',
+        desc: 'v0.4.8 still let trees explode. Root cause: tree lenScale upper bound was 0.93, which combined with +10 % per-segment jitter gave an effective compounding ratio of 1.023 — branches grew slightly each tier instead of shrinking. v0.4.9 tightens every type\'s lenScale, maxDepth, and seedLength bounds so the worst-case tree maths out to ~7.7 m. Growth kernel adds per-child length clamp (0.01..2.5 m) and parent-corrupt bail. New unit tests run a tick-by-tick growth simulation across 1000 spawns and a 200-generation mutation chain and assert no plant ever exceeds its type ceiling (tree ≤ 8 m, bush ≤ 2 m, grass ≤ 0.9 m, flower ≤ 1.1 m).',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
