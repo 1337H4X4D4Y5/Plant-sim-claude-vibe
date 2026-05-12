@@ -6,7 +6,36 @@ Reverse chronological. Each version corresponds to a milestone in the implementa
 
 ## Unreleased
 
-_v0.5.0 opens the fidelity milestone with a global seasonal cycle. Next: fake-SSS leaves or real sun shadow map._
+_v0.5.1 adds wind gusts + fake-SSS leaves on top of the seasonal cycle. Next: real sun shadow map or ACES tonemap._
+
+## v0.5.1 — Wind gusts + fake-SSS leaves (2026-05-12)
+
+Two small fidelity improvements that don't require any architectural change.
+
+### Wind gusts
+
+The previous wind was a fixed-amplitude sum-of-sines — the trees swayed with a metronome regardless of how much was happening. Added `computeWindGust(t)` in `main.js`: two slow sines (35 s and 90 s period) summed to a multiplier in roughly `[0.25, 1.75]`. The result is packed into the spare `viewport.w` slot of the frame uniform and read by both `branch.wgsl` and `leaf.wgsl` as a gust multiplier on the wind amplitude. Result: the canopy has visible periods of calm followed by stronger sways.
+
+### Fake-SSS leaves
+
+The previous back-light was `back * 0.4` flat (just dimmer lambert). Real translucent leaves do two things: (1) light coming from behind transmits through, tinted warm by chlorophyll absorbing blue more than green/red; (2) the effect is strongest when the viewer is looking roughly toward the sun.
+
+New leaf fragment shader:
+
+```
+let V = normalize(frame.cameraPosTime.xyz - in.worldPos);
+let viewAlign = clamp(-dot(V, L), 0.0, 1.0);        // 1 looking toward sun
+let sssStrength = back * (0.50 + 0.80 * viewAlign);
+let sssTint = vec3<f32>(1.20, 1.00, 0.45);          // warm chlorophyll
+```
+
+Three separate light contributions are now summed: direct sun + warm transmission + ambient. Back-lit leaves at view-aligned-with-sun glow visibly warmer; front-lit leaves look the same as before.
+
+### Notes
+
+- Wind gust value piggy-backs on `viewport.w` (was 0 padding). Season piggy-backed on `.z` from v0.5.0. No new bind groups, buffers, or pipeline changes.
+- Camera position was already in `cameraPosTime.xyz` — leaf shader just hadn't been using it.
+- 17 tests still pass (no model changes).
 
 ## v0.5.0 — Seasons (2026-05-12)
 

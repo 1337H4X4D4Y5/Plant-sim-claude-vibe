@@ -424,6 +424,12 @@
         desc: 'First feature in milestone v0.5 (fidelity). A global seasonal cycle now runs at 480 s per year (so a season is ~2 min at 1×, ~12 s at 10× speed): spring buds, summer green, autumn fall colours (per-species: oval amber, birch yellow, willow drab, maple red-orange, heart deep red), late autumn drop, winter bare branches. Implemented as a single `season ∈ [0,1)` value packed into the frame uniform; leaf.wgsl applies a per-leaf size scale and a colour tint blended through the cycle. Per-leaf phase jitter so leaves don\'t all bud or drop in lockstep. HUD pill shows current season + cycle progress. Tests: 17 pass (no model changes — pure visual).',
       },
       {
+        id: 'v0.5.1',
+        title: 'Wind gusts + fake-SSS leaves',
+        status: 'shipped',
+        desc: 'Two visual upgrades. (1) Wind gusts: branch + leaf wind amplitude is multiplied by a slow time-varying intensity (sum of 35 s and 90 s sines, range ~0.25–1.75) so the field has periods of calm and stronger gusts instead of a metronome sway. (2) Fake subsurface scattering on leaves: the previous back-light was a flat 0.4× lambert — now back-lit leaves are tinted warm yellow-green (1.20, 1.00, 0.45) and their strength scales with view-alignment to the sun, so looking toward the sun reveals a classic glowing-canopy halo. Both signals piggy-back on spare frame-uniform slots (viewport.zw) — no new buffers or bind groups. 17 tests still pass.',
+      },
+      {
         id: 'v0.3',
         title: 'Many plants + LOD + cull',
         status: 'planned',
